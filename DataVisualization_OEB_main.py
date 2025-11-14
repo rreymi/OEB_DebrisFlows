@@ -10,7 +10,7 @@ def main():
     # Event
     event_year = "2024"
     event_month = "06"
-    event_day = "14"
+    event_day = "14" #test
     event = f"{event_year}_{event_month}_{event_day}"
 
     # Output path

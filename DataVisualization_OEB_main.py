@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from matplotlib.pyplot import title
-
 from utils.data_filter import filter_tracks_by_movement, filter_rows_upperlimit, filter_tracks_that_jump
 from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame
 from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks
@@ -9,7 +7,7 @@ from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, p
 
 def main():
 
-    # Event
+    # Event Details
     event_year = "2024"
     event_month = "06"
     event_day = "14" #test
@@ -26,23 +24,29 @@ def main():
     # Load raw Dataframe
     df = load_and_merge_event_data(event)
 
+    #%% FILTER DATA -- Define parameters
 
     # --- FILTER Data
-    #df = filter_tracks_that_jump(df, jump_threshold = 7.5, return_bad = False, verbose = True)
+    # Remove Tracks that jump
     df, df_bad = filter_tracks_that_jump(df, jump_threshold=3.5, return_bad=True)
     plot_xy_mov_tracks(df_bad, output_dir=output_dir, title = 'only bad tracks')
 
-
+    # Remove rows with Outliers (Velocity and Grainsize)
     df = filter_rows_upperlimit(df, velocity_upperlimit = 10, grainsize_upperlimit = 5)
+
+    # Remove Tracks that stay stationary or move less than yaxis_min_length
     df = filter_tracks_by_movement(df, yaxis_min_length=2.0)
     plot_xy_mov_tracks(df, output_dir=output_dir, title='df filtered')
 
+    #%% Stats PER Frame
     # Compute per-frame statistics
     df_stats = compute_mean_median_per_frame(df)
 
     # Prepare dataframe for plotting (moving averages)
     df_mova = prepare_df_for_plot(df_stats, window_size=9)
 
+
+    #%% DATA Visualization - PLOST
     #  --- MEAN Plots
     #  Plot velocity
     plot_variable_against_frame(

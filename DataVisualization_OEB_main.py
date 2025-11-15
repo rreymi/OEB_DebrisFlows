@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from utils.data_filter import filter_tracks_by_movement, filter_rows_upperlimit, compute_mean_median_per_frame
-from utils.data_utils import load_and_merge_event_data
-from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot
+from matplotlib.pyplot import title
+
+from utils.data_filter import filter_tracks_by_movement, filter_rows_upperlimit, filter_tracks_that_jump
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame
+from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks
 
 
 def main():
@@ -18,16 +20,22 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Choose Frame range to analyse
-    start_frame = 30000
-    end_frame = 41000
+    start_frame = 10000
+    end_frame = 72000
 
     # Load raw Dataframe
     df = load_and_merge_event_data(event)
 
 
     # --- FILTER Data
-    df = filter_rows_upperlimit(df, velocity_upperlimit = 15, grainsize_upperlimit = 5)
-    #df = filter_tracks_by_movement(df, yaxis_min_length=2.0)
+    #df = filter_tracks_that_jump(df, jump_threshold = 7.5, return_bad = False, verbose = True)
+    df, df_bad = filter_tracks_that_jump(df, jump_threshold=3.5, return_bad=True)
+    plot_xy_mov_tracks(df_bad, output_dir=output_dir, title = 'only bad tracks')
+
+
+    df = filter_rows_upperlimit(df, velocity_upperlimit = 10, grainsize_upperlimit = 5)
+    df = filter_tracks_by_movement(df, yaxis_min_length=2.0)
+    plot_xy_mov_tracks(df, output_dir=output_dir, title='df filtered')
 
     # Compute per-frame statistics
     df_stats = compute_mean_median_per_frame(df)
@@ -42,9 +50,9 @@ def main():
         plot_variable="velocity",
         statistic="mean",
         color_ma= "Steelblue",
-        label_name= 'Velocity',
+        label_name= 'velocity',
         y_label= 'Velocity (m/s)',
-        y_lim= (0, 12),
+        y_lim= (0, 10),
         output_dir=output_dir,
         start_frame=start_frame,
         end_frame=end_frame
@@ -56,7 +64,7 @@ def main():
         plot_variable="grainsize",
         statistic="mean",
         color_ma="darkorange",
-        label_name='Grain size',
+        label_name='grain size',
         y_label= 'Grain size (m)',
         y_lim=(0, 1),
         output_dir=output_dir,
@@ -70,8 +78,9 @@ def main():
         plot_variable="tracks",
         statistic="mean",  # statistic is ignored for tracks
         color_ma="red",
-        label_name='Number of boulder detections',
+        label_name='number of boulder detections',
         y_label='Number of Detections',
+        y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
         output_dir=output_dir,
         start_frame=start_frame,
         end_frame=end_frame
@@ -84,9 +93,9 @@ def main():
         plot_variable="velocity",
         statistic="median",
         color_ma="Steelblue",
-        label_name='Velocity',
+        label_name='velocity',
         y_label='Velocity (m/s)',
-        y_lim=(0, 12),
+        y_lim=(0, 10),
         output_dir=output_dir,
         start_frame=start_frame,
         end_frame=end_frame
@@ -98,7 +107,7 @@ def main():
         plot_variable="grainsize",
         statistic="median",
         color_ma="darkorange",
-        label_name='Grain size',
+        label_name='grain size',
         y_label='Grain size (m)',
         y_lim=(0, 1),
         output_dir=output_dir,
@@ -106,7 +115,7 @@ def main():
         end_frame=end_frame
     )
 
-
+    print('finished')
 
 
 

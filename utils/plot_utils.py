@@ -102,7 +102,7 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
         end_frame = df_mova['frame'].max()
 
     # Start plotting
-    fig, ax = plt.subplots(figsize=(14, 7))
+    fig, ax = plt.subplots(figsize=(21, 7))
 
     # Raw values
     ax.plot(
@@ -166,5 +166,52 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
 
     if show_plot:
         plt.show()
+
+    return output_path
+
+
+
+def plot_xy_mov_tracks(df_bad: pd.DataFrame,
+                    xlim=(-10, 6),
+                    ylim=(-8, 8),
+                    title = str,
+                    output_dir: Path | None = None):
+    """
+    Plot all tracks from df whose track ID is in bad_tracks.
+
+    Parameters
+    ----------
+    df_bad : pd.DataFrame
+        Must contain columns ['track', 'bb_center_lidar_x', 'bb_center_lidar_y'].
+
+    xlim : tuple, optional
+        X-axis limits.
+    ylim : tuple, optional
+        Y-axis limits.
+    title : str,
+
+    output_dir : Path | None, optional
+    """
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # iterate over track IDs
+    for tid, df_track in df_bad.groupby("track"):
+        ax.plot(df_track["bb_center_lidar_x"],
+                df_track["bb_center_lidar_y"],
+                linewidth=1)
+
+    # formatting
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel("X (LiDAR bbox center)")
+    ax.set_ylabel("Y (LiDAR bbox center)")
+    ax.set_aspect("equal", "box")
+    ax.grid(True, linestyle='--', alpha=0.3)
+
+    # Save figure
+    fig_name = f"xy_movement_{title}.jpeg"
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
     return output_path

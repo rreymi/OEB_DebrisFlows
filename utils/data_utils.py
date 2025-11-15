@@ -4,6 +4,32 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+def compute_mean_median_per_frame(df_raw: pd.DataFrame, columns: list = None) -> pd.DataFrame:
+    """
+    Reduce dataframe to essential columns and compute per-frame statistics.
+
+    Parameters:
+        df_raw (pd.DataFrame): Input raw dataframe with at least 'frame', 'track', 'velocity', 'grainsize', 'time'.
+        columns (list, optional): List of essential columns to keep. Default ['frame', 'track', 'velocity', 'grainsize', 'time'].
+
+    Returns:
+        pd.DataFrame: Reduced dataframe with per-frame statistics added.
+    """
+    if columns is None:
+        columns = ['frame', 'track', 'velocity', 'grainsize', 'time']
+
+    # Reduce size by keeping only essential columns
+    df = df_raw[columns].copy()
+
+    # Compute per-frame statistics
+    df['mean_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('mean')
+    df['mean_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('mean')
+    df['median_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('median')
+    df['median_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('median')
+    df['unique_tracks_per_frame'] = df.groupby('frame')['track'].transform('nunique')
+
+    return df
+
 
 def load_and_merge_event_data(event: str, base_dir: str = "input_data") -> pd.DataFrame:
     """

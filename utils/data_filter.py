@@ -153,6 +153,7 @@ def filter_rows_upperlimit(df: pd.DataFrame, velocity_upperlimit: float, grainsi
         pd.DataFrame: Filtered dataframe.
     """
     filtered_df = df[
+        (df['velocity'] != 0) &
         (df['grainsize'] != 0) &
         (df['velocity'] <= velocity_upperlimit) &
         (df['grainsize'] <= grainsize_upperlimit)

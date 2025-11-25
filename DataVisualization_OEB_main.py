@@ -10,7 +10,7 @@ def main():
     # Event Details
     event_year = "2024"
     event_month = "06"
-    event_day = "14" #test
+    event_day = "14"
     event = f"{event_year}_{event_month}_{event_day}"
 
     # Output path
@@ -18,8 +18,8 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Choose Frame range to analyse
-    start_frame = 10000
-    end_frame = 72000
+    start_frame = 0
+    end_frame = 100000
 
     # Load raw Dataframe
     df = load_and_merge_event_data(event)
@@ -28,14 +28,14 @@ def main():
 
     # --- FILTER Data
     # Remove Tracks that jump
-    df, df_bad = filter_tracks_that_jump(df, jump_threshold=3.5, return_bad=True)
+    df, df_bad = filter_tracks_that_jump(df, jump_threshold= 5, return_bad=True)
     plot_xy_mov_tracks(df_bad, output_dir=output_dir, title = 'only bad tracks')
 
     # Remove rows with Outliers (Velocity and Grainsize)
     df = filter_rows_upperlimit(df, velocity_upperlimit = 10, grainsize_upperlimit = 5)
 
     # Remove Tracks that stay stationary or move less than yaxis_min_length
-    df = filter_tracks_by_movement(df, yaxis_min_length=2.0)
+    df = filter_tracks_by_movement(df, yaxis_min_length=1)
     plot_xy_mov_tracks(df, output_dir=output_dir, title='df filtered')
 
     #%% Stats PER Frame

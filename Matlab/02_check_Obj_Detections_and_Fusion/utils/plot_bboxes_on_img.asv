@@ -1,0 +1,11 @@
+function plot_bboxes_on_img(frame, tracks, img_path)
+    figure
+    img_frame = imread(fullfile(img_path,sprintf('%06d.jpeg',frame)));
+    tracks_in_frame = tracks(tracks.frame_number_img==frame,:);
+    %bboxes = [tracks_in_frame.x-tracks_in_frame.width/2,tracks_in_frame.y-tracks_in_frame.height/2,tracks_in_frame.width,tracks_in_frame.height]; % bboxes for one object
+    bboxes = [tracks_in_frame.bb_left,tracks_in_frame.bb_top,tracks_in_frame.bb_width,tracks_in_frame.bb_height]; % bboxes for one object
+    imshow(img_frame)
+    hold on
+    for i=1:size(bboxes,1)
+        showShape("rectangle", bboxes(i,:),Label=tracks_in_frame.track_id(i))
+    end

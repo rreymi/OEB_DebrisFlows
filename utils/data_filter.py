@@ -4,6 +4,55 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+import pandas as pd
+
+def filter_tracks(
+    df: pd.DataFrame,
+    min_track_length: int,
+    max_track_length: int,
+    max_std_track_vel: float,
+    min_median_track_vel: float,
+    verbose: bool = True
+) -> pd.DataFrame:
+    # Compute track-level stats
+    track_stats = df.groupby('track').agg(
+        track_length=('track', 'size'),
+        track_vel_std=('velocity', 'std'),
+        track_vel_median=('velocity', 'median')
+    )
+
+    # Handle NaN std (tracks with only 1 row)
+    track_stats['track_vel_std'] = track_stats['track_vel_std'].fillna(0)
+
+    # Total tracks before filtering
+    total_tracks = len(track_stats)
+
+    # Apply filters step by step
+    mask_length = (track_stats['track_length'] >= min_track_length) & \
+                  (track_stats['track_length'] <= max_track_length)
+    mask_std    = (track_stats['track_vel_std'] <= max_std_track_vel)
+    mask_median = (track_stats['track_vel_median'] >= min_median_track_vel)
+
+    # Combine all filters
+    valid_tracks = track_stats[mask_length & mask_std & mask_median].index
+
+    # Debug / verbose output
+    if verbose:
+        print(f"Total tracks: {total_tracks}")
+        print(f"Tracks removed by length filter: {total_tracks - mask_length.sum()}")
+        print(f"Tracks removed by velocity std filter: {mask_length.sum() - (mask_length & mask_std).sum()}")
+        print(f"Tracks removed by median velocity filter: {(mask_length & mask_std).sum() - len(valid_tracks)}")
+        print(f"Tracks remaining: {len(valid_tracks)}")
+
+    # Filter the dataframe
+    df_filtered = df[df['track'].isin(valid_tracks)].reset_index(drop=True)
+
+    return df_filtered
+
+
+
+
+
 def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
                             return_bad: bool = False, verbose: bool = True):
     """
@@ -63,82 +112,82 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
 
 
 
-def plot_bad_tracks(df: pd.DataFrame,
-                    bad_tracks,
-                    xlim=(-10, 5),
-                    ylim=(-8, 5),
-                    figsize=(8, 8),
-                    title="Bad Tracks"):
+
+def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
+                              track_column: str = 'track',
+                              value_column: str = 'bb_center_lidar_y') -> pd.DataFrame:
     """
-    Plot all tracks from df whose track ID is in bad_tracks.
+    Filter tracks based on start vs end displacement (ignoring outliers).
+
+    Uses the second and second-last points to avoid spurious extremes.
+
+    Parameters:
+        df (pd.DataFrame): Input dataframe.
+        yaxis_min_length (float): Minimum required movement to keep track.
+        track_column (str): Column name for track IDs.
+        value_column (str): Column to measure movement.
+
+    Returns:
+        pd.DataFrame: Filtered dataframe with moving tracks only.
+    """
+    moving_tracks = []
+
+    for track_id, track_df in df.groupby(track_column):
+        track_df = track_df.sort_values('frame')  # ensure correct order
+
+        n = len(track_df)
+
+        if n < 4:
+            continue
+        elif n < 25:  # too short, just use first and last
+            y_start = track_df[value_column].iloc[2]
+            y_end = track_df[value_column].iloc[-2]
+        elif n < 50:  # too short, just use first and last
+            y_start = track_df[value_column].iloc[4]
+            y_end = track_df[value_column].iloc[-4]
+        elif n <150:  # use second and second-last points
+            y_start = track_df[value_column].iloc[6]
+            y_end = track_df[value_column].iloc[-6] #da die letzten frames oft verzerrt sind
+        else:  # use second and second-last points
+            y_start = track_df[value_column].iloc[8]
+            y_end = track_df[value_column].iloc[-10] #da die letzten frames oft verzerrt sind
+
+        if abs(y_end - y_start) > yaxis_min_length:
+            moving_tracks.append(track_id)
+
+    return df[df[track_column].isin(moving_tracks)]
+
+def filter_rows_nonzero_velocity(
+    df: pd.DataFrame,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Remove rows with zero velocity.
 
     Parameters
     ----------
     df : pd.DataFrame
-        Must contain columns ['track', 'bb_center_lidar_x', 'bb_center_lidar_y'].
-    bad_tracks : list or array-like
-        List of track IDs considered bad.
-    xlim : tuple, optional
-        X-axis limits.
-    ylim : tuple, optional
-        Y-axis limits.
-    figsize : tuple, optional
-        Figure size.
-    title : str, optional
-        Plot title.
+        Input dataframe containing a 'velocity' column.
+    verbose : bool, optional
+        Print debug information, by default True.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with rows where velocity == 0 removed.
     """
+    mask = df['velocity'] != 0
 
-    df_bad = df[df['track'].isin(bad_tracks)]
+    if verbose:
+        removed = (~mask).sum()
+        kept = mask.sum()
+        print(f"Removed {removed} rows with velocity == 0")
+        print(f"Kept {kept} rows")
 
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # iterate over track IDs
-    for tid, df_track in df_bad.groupby("track"):
-        ax.plot(df_track["bb_center_lidar_x"],
-                df_track["bb_center_lidar_y"],
-                linewidth=1)
-
-    # formatting
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-    ax.set_xlabel("X (LiDAR center)")
-    ax.set_ylabel("Y (LiDAR center)")
-    ax.set_aspect("equal", "box")
-    ax.set_title(title)
-    ax.grid(True, linestyle='--', alpha=0.3)
-
-    plt.tight_layout()
-    plt.show()
+    return df.loc[mask].reset_index(drop=True)
 
 
-def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float, track_column: str = 'track',
-                              value_column: str = 'bb_center_lidar_y') -> pd.DataFrame:
-    """
-    Filter tracks in a dataframe based on the movement range of a value column.
-
-    Parameters:
-        df (pd.DataFrame): Input dataframe.
-        yaxis_min_length (float): Minimum required movement range for tracks to keep.
-        track_column (str): Column name containing track IDs. Default: 'track'.
-        value_column (str): Column to measure movement range. Default: 'bb_center_lidar_y'.
-
-    Returns:
-        pd.DataFrame: Filtered dataframe containing only tracks with movement above the threshold.
-    """
-    # Calculate movement range per track
-    track_ranges = df.groupby(track_column)[value_column].agg(lambda x: x.max() - x.min())
-
-    # Identify tracks above threshold
-    moving_tracks = track_ranges[track_ranges > yaxis_min_length].index
-
-    # Filter dataframe
-    filtered_df = df[df[track_column].isin(moving_tracks)]
-
-    return filtered_df
-
-
-
-
+'''
 def filter_rows_upperlimit(df: pd.DataFrame, velocity_upperlimit: float, grainsize_upperlimit: float) -> pd.DataFrame:
     """
     Filter a dataframe by upper limits for velocity and grainsize,
@@ -160,3 +209,23 @@ def filter_rows_upperlimit(df: pd.DataFrame, velocity_upperlimit: float, grainsi
         ].dropna(subset=['velocity', 'grainsize'])
 
     return filtered_df
+'''
+
+
+
+def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 10) -> pd.DataFrame:
+    """
+    Set frame statistics to zero if the number of unique tracks
+    is below the minimum threshold.
+    """
+
+    cols_to_zero = [
+        "mean_vel_ma",
+        "mean_grain_ma",
+    ]
+
+    mask = df["unique_tracks_per_frame"] <= min_num_detections
+
+    df.loc[mask, cols_to_zero] = 0
+
+    return df

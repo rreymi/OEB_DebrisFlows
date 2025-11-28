@@ -4,24 +4,38 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-def compute_mean_median_per_frame(df_raw: pd.DataFrame, columns: list = None) -> pd.DataFrame:
+
+def extract_frame_time_table(
+    df: pd.DataFrame,
+    frame_col: str = "frame",
+    time_col: str = "time"
+) -> pd.DataFrame:
+
+    df_time = (
+        df[[frame_col, time_col]]
+        .dropna()
+        .drop_duplicates(subset=frame_col)
+        .sort_values(frame_col)
+        .reset_index(drop=True)
+    )
+    return df_time
+
+
+def compute_mean_median_per_frame(
+    df_raw: pd.DataFrame,
+    columns: list = None,
+    ) -> pd.DataFrame:
     """
     Reduce dataframe to essential columns and compute per-frame statistics.
-
-    Parameters:
-        df_raw (pd.DataFrame): Input raw dataframe with at least 'frame', 'track', 'velocity', 'grainsize', 'time'.
-        columns (list, optional): List of essential columns to keep. Default ['frame', 'track', 'velocity', 'grainsize', 'time'].
-
-    Returns:
-        pd.DataFrame: Reduced dataframe with per-frame statistics added.
     """
+
     if columns is None:
         columns = ['frame', 'track', 'velocity', 'grainsize', 'time']
 
     # Reduce size by keeping only essential columns
     df = df_raw[columns].copy()
 
-    # Compute per-frame statistics
+    # --- PER-FRAME STATISTICS ---
     df['mean_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('mean')
     df['mean_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('mean')
     df['median_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('median')
@@ -29,6 +43,7 @@ def compute_mean_median_per_frame(df_raw: pd.DataFrame, columns: list = None) ->
     df['unique_tracks_per_frame'] = df.groupby('frame')['track'].transform('nunique')
 
     return df
+
 
 
 def load_and_merge_event_data(event: str, base_dir: str = "input_data") -> pd.DataFrame:
@@ -78,7 +93,3 @@ def summarize_df(df):
     print('Start ID:', min_id)
     print('End ID:', max_id)
 
-    # --- Shape ---
-    print("\nDataframe shape:", np.shape(df))
-
-    df.info()

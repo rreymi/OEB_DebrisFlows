@@ -69,7 +69,8 @@ def prepare_df_for_plot(df: pd.DataFrame, window_size: int = 9) -> pd.DataFrame:
 def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
                                 color_ma: str, label_name: str, y_label: str,
                                 y_lim: tuple[float, float] | None = None, output_dir: Path | None = None,
-                                start_frame=None, end_frame=None, show_plot=True):
+                                start_frame=None, end_frame=None, show_plot=True, fig_size: tuple[int, int] = None,
+                                df_time: pd.DataFrame | None = None):
     """
     Plot a per-frame variable (velocity, grainsize, or tracks) against frame number,
     and top x-axis showing time in MM:SS.
@@ -86,6 +87,8 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
         start_frame (int, optional): start frame for x-axis
         end_frame (int, optional): end frame for x-axis
         show_plot (bool, optional): whether to call plt.show()
+        fig_size (tuple, optional): figure size
+        df_time (pd.DataFrame, optional): DataFrame with 'frame' and 'time' columns
     """
 
 
@@ -101,8 +104,30 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
     if end_frame is None:
         end_frame = df_mova['frame'].max()
 
-    # Start plotting
-    fig, ax = plt.subplots(figsize=(21, 7))
+
+    # --- Frame -> time mapping for top axis ---
+    frame_to_time = {}
+    if df_time is not None and not df_time.empty:
+        # assume df_time is already cleaned and sorted
+        frame_to_time = dict(zip(df_time['frame'], df_time['time']))
+
+    # --- Function to convert frame -> MM:SS ---
+    def frame_to_mmss(frame):
+        if not frame_to_time:
+            return ""
+        nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
+        seconds = frame_to_time[nearest_frame]
+        if pd.isna(seconds):
+            return ""
+        minutes = int(seconds) // 60
+        secs = int(seconds) % 60
+        return f"{minutes:02d}:{secs:02d}"
+
+
+
+
+    # --- Start plotting
+    fig, ax = plt.subplots(figsize=fig_size)
 
     # Raw values
     ax.plot(
@@ -139,13 +164,6 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
     ax_top.set_xlim(ax.get_xlim())
     ax_top.set_xlabel("Time [MM:SS]", fontsize=16)
 
-    # Function to convert frame -> MM:SS
-    def frame_to_mmss(frame):
-        idx = (df_mova['frame'] - frame).abs().idxmin()
-        seconds = df_mova.loc[idx, 'time']
-        minutes = int(seconds) // 60
-        secs = int(seconds) % 60
-        return f"{minutes:02d}:{secs:02d}"
 
     # Set tick locations and formatting
     ax_top.xaxis.set_major_locator(ticker.AutoLocator())

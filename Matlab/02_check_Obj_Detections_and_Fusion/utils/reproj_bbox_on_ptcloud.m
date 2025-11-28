@@ -1,0 +1,183 @@
+function reproj_bbox_on_ptcloud(allStats, frameImg, pathPtCloud, cameraParams, tform, spacing, zCutoff, xLim, yLim)
+%REPROJ_BBOX_ON_PTCLOUD
+%   Reprojects 2D image bounding boxes onto the LiDAR point cloud for a
+%   given image frame. Highlights:
+%       • Full LiDAR cloud
+%       • Points falling inside each 2D bounding box
+%       • (Optional) special lidar points per object: left, center, right
+%
+%   Inputs:
+%       allStats    - Table containing track data (single track pre-filtered)
+%       frameImg    - Image frame number to visualize (scalar)
+%       pathPtCloud - Folder path containing *.ply LiDAR files
+%       cameraParams - Camera intrinsics
+%       tform       - Rigid transform LiDAR → camera
+%       spacing, zCutoff, xLim, yLim - point cloud filtering/interpolation
+
+
+%% 00 Extract row for this image frame
+
+T = allStats(allStats.frame == frameImg, :);
+
+if isempty(T)
+    warning('Frame %d does not exist in the provided track table.', frameImg);
+    return;
+end
+
+trackID = allStats.track(1);                  % the track ID (all rows have same)
+frameLdr = T.frame_number_ldr(1);             % LiDAR frame associated (already merged upstream)
+
+
+%% 01 Load & interpolate LiDAR point cloud
+
+filePath = fullfile(pathPtCloud, sprintf('%05d.ply', frameLdr));
+
+if ~isfile(filePath)
+    error('PLY file not found: %s', filePath);
+end
+
+ptCloudRaw = pcread(filePath);
+
+% Interpolate & crop to camera limits
+[ptCloudInterp, ~] = interpolatePointCloudToEvenSpacingCameraLimits(ptCloudRaw, spacing, zCutoff, xLim, yLim);
+
+% White cloud for background
+ptCloudInterp = colorPtCloud(ptCloudInterp, [255 255 255]);
+
+
+%% 02 Project LiDAR → image
+
+[projImgPoints, idxValid] = projectLidarPointsOnImage(ptCloudInterp, cameraParams.Intrinsics, tform);
+
+ptCloudImg = select(ptCloudInterp, idxValid);
+
+
+%% 03 Find points inside bounding box
+
+% Extract the single bounding box
+bbox = [T.bb_left, T.bb_top, T.bb_width, T.bb_height];
+
+% Convert bbox → polygon points
+poly = bbox2points(bbox);
+xv = poly(:,1);
+yv = poly(:,2);
+
+% Determine which LiDAR-image projected points fall inside the bbox
+inBoxMask = inpolygon(projImgPoints(:,1), projImgPoints(:,2), xv, yv);
+
+objectPts = select(ptCloudImg, inBoxMask);
+objectPts = colorPtCloud(objectPts, 255 * [0 0.4470 0.7410]); % blue-ish
+
+
+%% 04 Plot
+
+fig = figure('Name', sprintf('Frame %d – Track %d', frameImg, trackID));
+ax  = axes('Parent', fig);
+
+cla(ax);
+pcshow(ptCloudInterp, 'Parent', ax, 'MarkerSize', 15);
+hold(ax, 'on');
+
+% Highlight bbox points
+pcshow(objectPts, 'Parent', ax, 'MarkerSize', 40);
+
+% Special points
+scatter3(ax, T.bb_left_lidar_x,   T.bb_left_lidar_y,   T.bb_left_lidar_z,   40, 'red',    'filled');
+scatter3(ax, T.bb_center_lidar_x, T.bb_center_lidar_y, T.bb_center_lidar_z, 40, 'magenta','filled');
+scatter3(ax, T.bb_right_lidar_x,  T.bb_right_lidar_y,  T.bb_right_lidar_z,  40, 'green',  'filled');
+
+title(ax, sprintf('Reprojection – ImgFrame %d – Track %d', frameImg, trackID));
+xlabel(ax,'X'); ylabel(ax,'Y'); zlabel(ax,'Z');
+grid(ax,'on');
+hold(ax,'off');
+
+drawnow;
+
+end
+
+
+
+% OLD
+
+% 
+% function reproj_bboxes_on_ptcloud_V2(all_stats_of_TrackID, frame_img_interest, path_ptcloud, cameraParams, tform, spacing, zCutoff, xLim, yLim)
+% %REPROJ_BBOXES_ON_PTCLOUD  Project 2D bounding boxes onto LiDAR point cloud
+% %
+% % Inputs:
+% %   frame        - Frame number (e.g., 42)
+% %   bboxes       - Table or Nx4 matrix [bb_left, bb_top, bb_width, bb_height]
+% %   path_ptcloud - Path to folder with .ply files
+% %   cameraParams - Camera parameters with .Intrinsics
+% %   tform        - Geometric transformation (LiDAR -> Camera)
+% %   ax           - (Optional) Axes handle for reusing existing figure
+% 
+%     %dataframe of single frame and trackid
+% 
+%     T = all_stats_of_TrackID(all_stats_of_TrackID.frame == frame_img_interest, :);
+% 
+% 
+%     id = all_stats_of_TrackID.track(1);
+%     frame_ldr = all_stats_of_TrackID.frame_number_ldr(all_stats_of_TrackID.frame == frame_img_interest);
+%     frame_img = frame_img_interest; % single img to show
+% 
+% 
+%     fig1 = figure('Name', sprintf('Frame %d - Point Cloud', frame_img));
+%     ax = axes;
+% 
+%     % Load and color full point cloud
+%     file_path = fullfile(path_ptcloud, sprintf('%05d.ply', frame_ldr));
+%     ptcloud = pcread(file_path);
+% 
+%     [ptcloud_interpol,~] = interpolatePointCloudToEvenSpacingCameraLimits(ptcloud,spacing,zCutoff,xLim,yLim);
+% 
+%     ptcloud = colorPtCloud(ptcloud_interpol, [255 255 255]);
+% 
+%     % Project LiDAR points to image
+%     [imPts, indices_all] = projectLidarPointsOnImage(ptcloud, cameraParams.Intrinsics, tform);
+%     ptCloudimg = select(ptcloud, indices_all);
+% 
+%     % Prepare list of points to highlight
+%     in_box = false(size(indices_all));
+% 
+%     bboxes = [T.bb_left,T.bb_top,T.bb_width,T.bb_height];
+% 
+%     for i = 1:size(bboxes, 1)
+%         bbox = bboxes(i, :);
+%         pts = bbox2points(bbox);
+%         xv = pts(:,1);
+%         yv = pts(:,2);
+%         in_box = in_box | inpolygon(imPts(:,1), imPts(:,2), xv, yv);
+%     end
+% 
+%     % Select object points once
+%     objectPts = select(ptCloudimg, in_box);
+%     objectPts = colorPtCloud(objectPts, 255*[0 0.4470 0.7410]);
+% 
+%     cla(ax);  % Clear previous contents
+% 
+%     % 1. Plot full LiDAR point cloud
+%     pcshow(ptcloud, 'Parent', ax, 'MarkerSize', 15);
+%     hold(ax, 'on');
+% 
+%     % 2. Highlight points inside bbox
+%     pcshow(objectPts, 'Parent', ax, 'MarkerSize', 40);  % bigger dots for bbox region
+% 
+%     % 3. Plot your special points (center, left, right)
+%     scatter3(T.bb_left_lidar_x, T.bb_left_lidar_y, T.bb_left_lidar_z, 40, 'red', 'filled'); % left
+%     scatter3(T.bb_center_lidar_x, T.bb_center_lidar_y, T.bb_center_lidar_z, 40, 'magenta', 'filled'); % center
+%     scatter3(T.bb_right_lidar_x, T.bb_right_lidar_y, T.bb_right_lidar_z, 40, 'green', 'filled'); % right
+% 
+%     % 4. Add title, labels, and maybe improve visibility
+%     title(ax, sprintf('Frame img %d - TrackID %d', frame_img, id));
+%     xlabel(ax, 'X'); ylabel(ax, 'Y'); zlabel(ax, 'Z');
+%     grid(ax, 'on');
+%     hold(ax, 'off');
+% 
+%     drawnow;
+% 
+% end
+
+
+
+
+

@@ -1,0 +1,20 @@
+Data Visualization in Python - Debris Flows OEB 
+
+Add following folders with files:
+-> For Input 
+folder: input_data
+subfolder: 2024_06_14
+            - all_stats_2024_06_14.txt
+            - time_column_2024_06_14.txt
+
+-> For Output
+folder: output
+subfolder: 2024_06_14
+
+
+For most Matlab scripts add:
+folder: Data
+subfolder: TrackFiles
+            - 2024_06_14.csv
+
+folder: ConfigFiles

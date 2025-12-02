@@ -31,37 +31,75 @@ def get_plot_columns(plot_variable: str, statistic: str):
     raise ValueError(f"Unknown variable/statistic combination: {plot_variable}, {statistic}")
 
 
-def prepare_df_for_plot(df: pd.DataFrame, window_size: int = 9) -> pd.DataFrame:
+def prepare_df_for_plot(
+    df: pd.DataFrame,
+    window_size: int = 9,
+    gap_threshold: int = 100
+) -> pd.DataFrame:
     """
     Prepare the dataframe for plotting:
     - Remove duplicate frames
     - Sort by frame
-    - Compute rolling moving averages for per-frame columns
+    - Break time series over large frame gaps using NaNs
+    - Compute rolling moving averages
 
-    Parameters:
-        df (pd.DataFrame): Input dataframe with per-frame statistics and 'time' column
-        window_size (int): Window size for moving average
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe with per-frame statistics
+    window_size : int
+        Window size for moving average
+    gap_threshold : int
+        Max allowed frame gap before inserting NaNs
 
-    Returns:
-        pd.DataFrame: Dataframe ready for plotting with rolling averages added
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe ready for plotting
     """
-    # Drop duplicate frames and sort
-    df_event = df.drop_duplicates(subset="frame", keep="first")
-    df_event = df_event.sort_values(by="frame")
 
-    # Define columns for rolling average
+    # --- Drop duplicates & sort ---
+    df_event = (
+        df.drop_duplicates(subset="frame", keep="first")
+          .sort_values(by="frame")
+          .reset_index(drop=True)
+    )
+
+    # --- Detect frame gaps ---
+    frame_diff = df_event["frame"].diff()
+
+    gap_mask = frame_diff > gap_threshold
+
+    # --- Columns affected by gaps (all per-frame stats) ---
+    gap_cols = [
+        "mean_velocity_per_frame",
+        "median_velocity_per_frame",
+        "mean_grainsize_per_frame",
+        "median_grainsize_per_frame",
+        ]
+
+    present_gap_cols = [c for c in gap_cols if c in df_event.columns]
+
+    # --- Insert NaN AFTER a large gap ---
+    df_event.loc[gap_mask, present_gap_cols] = np.nan
+
+    # --- Rolling columns mapping ---
     rolling_cols = {
         "mean_velocity_per_frame": "mean_vel_ma",
         "median_velocity_per_frame": "median_vel_ma",
         "mean_grainsize_per_frame": "mean_grain_ma",
         "median_grainsize_per_frame": "median_grain_ma",
-        "unique_tracks_per_frame": "tracks_ma"
+        "unique_tracks_per_frame": "tracks_ma",
     }
 
-    # Compute moving averages
+    # --- Compute moving averages ---
     for col, ma_col in rolling_cols.items():
         if col in df_event.columns:
-            df_event[ma_col] = df_event[col].rolling(window=window_size, center=True).mean()
+            df_event[ma_col] = (
+                df_event[col]
+                .rolling(window=window_size, center=True)
+                .mean()
+            )
 
     return df_event
 

@@ -1,11 +1,7 @@
 from pathlib import Path
 
-import pandas as pd
-import matplotlib.pyplot as plt
-from IPython.core.pylabtools import figsize
-
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
-from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, summarize_df, extract_frame_time_table, load_piv_data, merge_piv_and_tracking
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking
 from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity
 
 
@@ -95,10 +91,10 @@ def main():
     df_stats.to_csv(output_dir / f"df_stats_{event}.csv")
 
     # Prepare dataframe for plotting (moving averages)
-    df_mova = prepare_df_for_plot(df_stats, window_size=9)
+    df_mova = prepare_df_for_plot(df_stats, window_size=7, gap_threshold=400)
     # clean frames with very low number of detections
 
-    df_mova = clean_frames_low_detections(df_mova, min_num_detections = 5)
+    df_mova = clean_frames_low_detections(df_mova, min_num_detections = 2)
 
     # save CSV of MOVA (plot table)
     df_mova.to_csv(output_dir / f"df_mova_{event}.csv")
@@ -145,9 +141,9 @@ def main():
     #%% Plot X-Y Track Mov
     df_bad = df_bad[df_bad['frame'].between(start_frame, end_frame)]
     df_clean = df_clean[df_clean['frame'].between(start_frame, end_frame)]
-    plot_xy_mov_tracks(df_bad, title='Filtered TrackIDs paths', output_dir=output_dir)
+    plot_xy_mov_tracks(df_bad, title='Bad TrackIDs paths', output_dir=output_dir)
 
-    plot_xy_mov_tracks(df_clean,title='Bad TrackIDs paths', output_dir=output_dir)
+    plot_xy_mov_tracks(df_clean,title='Filtered TrackIDs paths', output_dir=output_dir)
 
 
 

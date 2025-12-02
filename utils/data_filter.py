@@ -196,7 +196,7 @@ def filter_rows_nonzero_velocity(
 
 
 
-def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 10) -> pd.DataFrame:
+def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -> pd.DataFrame:
     """
     Set frame statistics to zero if the number of unique tracks
     is below the minimum threshold.
@@ -205,10 +205,12 @@ def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 10) 
     cols_to_zero = [
         "mean_vel_ma",
         "mean_grain_ma",
+        'mean_velocity_per_frame',
+        'mean_grainsize_per_frame'
     ]
 
     mask = df["unique_tracks_per_frame"] <= min_num_detections
 
-    df.loc[mask, cols_to_zero] = 0
+    df.loc[mask, cols_to_zero] = np.nan
 
     return df

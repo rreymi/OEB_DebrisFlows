@@ -230,8 +230,9 @@ for i = 1:numel(bbox_centers_lidar)
         velocity_{i} = []; % no velocity for empty or single-point tracks
         continue
     end
-   
-    velocity_{i} = calc_3D_vel(points, 10); % calculate 3D velocity 
+   ldr_numbers = tracks.frame_number_ldr(tracks.track_id == i);
+   time_steps = (ldr_numbers - ldr_numbers(1)) / 10; % in secs
+   velocity_{i} = calc_3D_vel(points, time_steps); % calculate 3D velocity 
 end
 
 fprintf('=== Velocity complete \n');

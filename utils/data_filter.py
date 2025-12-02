@@ -1,9 +1,6 @@
 # data_filter.py
 
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-
 import pandas as pd
 
 def filter_tracks(
@@ -67,7 +64,7 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
         Maximum allowed Euclidean jump distance between consecutive frames.
 
     return_bad : bool, optional
-        If True, returns (good_df, bad_df). Otherwise returns only filtered df.
+        If True, returns (good_df, bad_df). other returns only filtered df.
 
     verbose : bool, optional
         If True, print summary stats.
@@ -79,13 +76,15 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
     """
 
     # --- Ensure sorted for correct diff ---
-    df = df.sort_values(['track', 'frame']).copy()
+    df = df.sort_values(['track', 'frame'])
 
     # --- Compute per-frame displacement ---
     dx = df.groupby("track")["bb_center_lidar_x"].diff()
     dy = df.groupby("track")["bb_center_lidar_y"].diff()
+    dz = df.groupby("track")["bb_center_lidar_z"].diff()
 
-    df["jump_dist"] = np.sqrt(dx**2 + dy**2)
+    # --- 3D Euclidean distance ---
+    df["jump_dist"] = np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
 
     # --- Identify which tracks have ANY bad jump ---
     track_max_jump = df.groupby('track')["jump_dist"].max()
@@ -147,15 +146,28 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
             y_end = track_df[value_column].iloc[-4]
         elif n <150:  # use second and second-last points
             y_start = track_df[value_column].iloc[6]
-            y_end = track_df[value_column].iloc[-6] #da die letzten frames oft verzerrt sind
+            y_end = track_df[value_column].iloc[-6] #last frames often show jumping
         else:  # use second and second-last points
             y_start = track_df[value_column].iloc[8]
-            y_end = track_df[value_column].iloc[-10] #da die letzten frames oft verzerrt sind
+            y_end = track_df[value_column].iloc[-10]
 
         if abs(y_end - y_start) > yaxis_min_length:
             moving_tracks.append(track_id)
 
-    return df[df[track_column].isin(moving_tracks)]
+    filtered_df = df[df[track_column].isin(moving_tracks)]
+
+    # Stats
+    total_tracks = df[track_column].nunique()
+    kept_tracks = len(moving_tracks)
+    removed_tracks = total_tracks - kept_tracks
+    print('--- Summary Filter y Axis Movement ---')
+    print(f"Tracks total: {total_tracks}")
+    print(f"Tracks kept (movement > {yaxis_min_length}): {kept_tracks}")
+    print(f"Tracks removed: {removed_tracks}")
+    print("-------------------------")
+
+    return filtered_df
+
 
 def filter_rows_nonzero_velocity(
     df: pd.DataFrame,
@@ -170,46 +182,17 @@ def filter_rows_nonzero_velocity(
         Input dataframe containing a 'velocity' column.
     verbose : bool, optional
         Print debug information, by default True.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with rows where velocity == 0 removed.
     """
     mask = df['velocity'] != 0
 
     if verbose:
-        removed = (~mask).sum()
-        kept = mask.sum()
+        total = len(mask)
+        kept = int(mask.sum())
+        removed = total - kept
         print(f"Removed {removed} rows with velocity == 0")
         print(f"Kept {kept} rows")
 
     return df.loc[mask].reset_index(drop=True)
-
-
-'''
-def filter_rows_upperlimit(df: pd.DataFrame, velocity_upperlimit: float, grainsize_upperlimit: float) -> pd.DataFrame:
-    """
-    Filter a dataframe by upper limits for velocity and grainsize,
-    and remove rows with grainsize = 0 or missing values.
-
-    Parameters:
-        df (pd.DataFrame): Input dataframe with columns 'velocity' and 'grainsize'.
-        velocity_upperlimit (float): Maximum allowed velocity.
-        grainsize_upperlimit (float): Maximum allowed grainsize.
-
-    Returns:
-        pd.DataFrame: Filtered dataframe.
-    """
-    filtered_df = df[
-        (df['velocity'] != 0) &
-        (df['grainsize'] != 0) &
-        (df['velocity'] <= velocity_upperlimit) &
-        (df['grainsize'] <= grainsize_upperlimit)
-        ].dropna(subset=['velocity', 'grainsize'])
-
-    return filtered_df
-'''
 
 
 

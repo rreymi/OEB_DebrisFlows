@@ -1,11 +1,11 @@
 # plot_utils.py
 
-import math as math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from pathlib import Path
+from matplotlib import font_manager
 
 
 def get_plot_columns(plot_variable: str, statistic: str):
@@ -46,7 +46,7 @@ def prepare_df_for_plot(df: pd.DataFrame, window_size: int = 9) -> pd.DataFrame:
         pd.DataFrame: Dataframe ready for plotting with rolling averages added
     """
     # Drop duplicate frames and sort
-    df_event = df.drop_duplicates(subset="frame", keep="first").copy()
+    df_event = df.drop_duplicates(subset="frame", keep="first")
     df_event = df_event.sort_values(by="frame")
 
     # Define columns for rolling average
@@ -149,14 +149,14 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
     )
 
     # --- X axis
-    ax.set_xlabel("Frame Number", fontsize=18)
+    ax.set_xlabel("Frame Number", fontsize=16)
     ax.set_xlim(start_frame, end_frame)
 
     # --- Y axis
-    ax.set_ylabel(f"{y_label}", fontsize=18)
+    ax.set_ylabel(f"{y_label}", fontsize=16)
     ax.set_ylim(y_lim) # Y-axis max * 1.1 to increase dist
 
-    ax.tick_params(axis='both', labelsize=14, pad=8, length=4, width=1)
+    ax.tick_params(axis='both', labelsize=15, pad=8, length=4, width=1)
     ax.grid(True, linestyle="-", alpha=0.5)
 
     # --- TOP axis (time in MM:SS)
@@ -168,7 +168,7 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
     # Set tick locations and formatting
     ax_top.xaxis.set_major_locator(ticker.AutoLocator())
     ax_top.xaxis.set_major_formatter(ticker.FuncFormatter(lambda val, pos: frame_to_mmss(val)))
-    ax_top.tick_params(axis='x', labelsize=14, pad=8, length=4, width=1)
+    ax_top.tick_params(axis='x', labelsize=15, pad=8, length=4, width=1)
 
 
     # Legend
@@ -189,9 +189,9 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
 
 
 
-def plot_xy_mov_tracks(df_bad: pd.DataFrame,
-                    xlim=(-10, 6),
-                    ylim=(-8, 8),
+def plot_xy_mov_tracks(df: pd.DataFrame,
+                    x_lim=(-10, 6),
+                    y_lim=(-8, 8),
                     title = str,
                     output_dir: Path | None = None):
     """
@@ -199,12 +199,12 @@ def plot_xy_mov_tracks(df_bad: pd.DataFrame,
 
     Parameters
     ----------
-    df_bad : pd.DataFrame
+    df : pd.DataFrame
         Must contain columns ['track', 'bb_center_lidar_x', 'bb_center_lidar_y'].
 
-    xlim : tuple, optional
+    x_lim : tuple, optional
         X-axis limits.
-    ylim : tuple, optional
+    y_lim : tuple, optional
         Y-axis limits.
     title : str,
 
@@ -214,14 +214,14 @@ def plot_xy_mov_tracks(df_bad: pd.DataFrame,
     fig, ax = plt.subplots(figsize=(8, 8))
 
     # iterate over track IDs
-    for tid, df_track in df_bad.groupby("track"):
+    for tid, df_track in df.groupby("track"):
         ax.plot(df_track["bb_center_lidar_x"],
                 df_track["bb_center_lidar_y"],
                 linewidth=1)
 
     # formatting
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    ax.set_xlim(x_lim)
+    ax.set_ylim(y_lim)
     ax.set_xlabel("X (LiDAR bbox center)")
     ax.set_ylabel("Y (LiDAR bbox center)")
     ax.set_aspect("equal", "box")
@@ -233,3 +233,107 @@ def plot_xy_mov_tracks(df_bad: pd.DataFrame,
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
     return output_path
+
+
+def plot_piv_and_tracking_velocity(
+    df_piv_mova: pd.DataFrame,
+    event: str,
+    start_frame: int,
+    end_frame: int,
+    fig_size: tuple[int, int] = None,
+    output_dir: Path | None = None,
+) -> None:
+    """
+    Plot PIV and tracking velocities with lower x-axis as frame numbers
+    and top x-axis as corresponding time in MM:SS.
+
+    Parameters
+    ----------
+    df_piv_mova : pd.DataFrame
+        Must contain columns: 'mova_frame', 'time_sec', 'mova_mean_vel_per_frame', 'piv_vel_smoothed'
+    event : str
+    start_frame : int
+        First frame to display
+    end_frame : int
+        Last frame to display
+    fig_size : tuple, optional
+        Figure size, by default (14,7)
+    output_dir : Path | None, optional
+    """
+
+    # --- Create figure and axes ---
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    # --- Plot velocities ---
+    ax.plot(df_piv_mova['mova_frame'],
+            df_piv_mova['mova_mean_vel_per_frame'],
+            color='lightgray',
+            alpha=0.9,
+            linewidth=1)
+
+
+
+    ax.plot(df_piv_mova['mova_frame'],
+            df_piv_mova['mova_ma_vel'],
+            color = 'Steelblue',
+            linewidth=1.75,
+            label="Tracking Velocity per frame")
+
+    ax.plot(df_piv_mova['mova_frame'],
+            df_piv_mova['piv_vel_smoothed'],
+            color='goldenrod',
+            linewidth=1.75,
+            label="Smoothed PIV Velocity")
+
+
+
+
+    # --- Configure lower x-axis ---
+    ax.set_xlabel("Frame Number", fontsize=16)
+    ax.set_xlim(start_frame, end_frame)
+
+    # --- Y Axis
+    ax.set_ylabel("Velocity (m/s)", fontsize=16)
+    ax.set_ylim(0, 5)
+
+    ax.tick_params(axis='both', labelsize=15, pad=8, length=4, width=1)
+    ax.grid(True, linestyle="-", alpha=0.5)
+
+    # --- Top x-axis for time ---
+    ax_top = ax.twiny()
+    ax_top.set_xlim(ax.get_xlim())
+    ax_top.set_xlabel("Time [MM:SS]", fontsize=16)
+
+    # --- Helper: map frame → time_sec ---
+    def frame_to_time_sec(frame):
+        return np.interp(frame, df_piv_mova['mova_frame'], df_piv_mova['time_sec'])
+
+    # --- Formatter: seconds → MM:SS ---
+    def sec_to_mmss(x):
+        mm = int(x // 60)
+        ss = int(x % 60)
+        return f"{mm:02d}:{ss:02d}"
+
+    # --- Set top ticks ---
+    top_ticks = ax.get_xticks()
+    ax_top.set_xticks(top_ticks)
+    ax_top.set_xticklabels([sec_to_mmss(frame_to_time_sec(f)) for f in top_ticks])
+    ax_top.tick_params(axis='x', labelsize=15, pad=8, length=4, width=1)
+
+    leg = ax.legend(
+        title="Velocities (m/s)",
+        title_fontproperties=font_manager.FontProperties(weight='bold', size=16),
+        fontsize=14,
+        frameon=True,
+        loc="best",
+        facecolor="white",
+        edgecolor="black")
+    plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
+
+    fig.tight_layout()
+
+    fig_name = f"PIV_and_Tracking_velocities_{event}_{start_frame}_{end_frame}.jpeg"
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    plt.show()

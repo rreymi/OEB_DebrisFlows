@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from IPython.core.pylabtools import figsize
 
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
-from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, summarize_df, extract_frame_time_table
-from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, summarize_df, extract_frame_time_table, load_piv_data, merge_piv_and_tracking
+from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity
 
 
 def main():
@@ -32,19 +32,19 @@ def main():
     #%% FILTER DATA -- Define parameters
 
     # Choose Frame range to analyse
-    start_frame = 10000
-    end_frame = 14500
+    start_frame = 32000
+    end_frame = 46000
 
     # Define track lengths
     min_track_length = 5
-    max_track_length = 250
+    max_track_length = 300
 
     # Velocity limits
     max_std_track_vel = 1
     min_median_track_vel = 0.1
 
     # Jumping threshold
-    jump_threshold = 3
+    jump_threshold = 1
 
     # Y-axis movement
     yaxis_min_length = 0.5
@@ -77,11 +77,13 @@ def main():
 
 
     df_clean = df_filtered_04
+    #df_clean = df_raw
     n_tracks = df_clean['track'].nunique()
     n_tracks_raw = df_raw['track'].nunique()
     print(f"\nFiltering summary:\n"
         f"  Remaining track IDs: {n_tracks}\n"
-        f"  Total tracks IDs:     {n_tracks_raw}")
+        f"  Removed track IDS:   {n_tracks_raw - n_tracks}\n"
+        f"  Total tracks IDs:    {n_tracks_raw}")
 
 
 
@@ -115,13 +117,7 @@ def main():
         color_ma= "Steelblue",
         label_name= 'velocity',
         y_label= 'Velocity (m/s)',
-        y_lim= ylim_velocity,
-        output_dir=output_dir,
-        start_frame=start_frame,
-        end_frame=end_frame,
-        df_time = df_time,
-        fig_size= fig_size
-    )
+        y_lim= ylim_velocity,output_dir=output_dir,start_frame=start_frame,end_frame=end_frame,df_time = df_time,fig_size= fig_size)
 
     # Plot grainsize
     plot_variable_against_frame(
@@ -131,13 +127,7 @@ def main():
         color_ma="darkorange",
         label_name='grain size',
         y_label= 'Grain size (m)',
-        y_lim=ylim_grainsize,
-        output_dir=output_dir,
-        start_frame=start_frame,
-        end_frame=end_frame,
-        df_time=df_time,
-        fig_size= fig_size
-    )
+        y_lim=ylim_grainsize, output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time,fig_size=fig_size)
 
     # Plot tracks
     plot_variable_against_frame(
@@ -148,18 +138,29 @@ def main():
         label_name='number of boulder detections',
         y_label='Number of Detections',
         y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
-        output_dir=output_dir,
-        start_frame=start_frame,
-        end_frame=end_frame,
-        df_time=df_time,
-        fig_size=fig_size
-    )
+        output_dir=output_dir,start_frame=start_frame,end_frame=end_frame,df_time=df_time,fig_size=fig_size)
 
 
+
+    #%% Plot X-Y Track Mov
+    df_bad = df_bad[df_bad['frame'].between(start_frame, end_frame)]
+    df_clean = df_clean[df_clean['frame'].between(start_frame, end_frame)]
+    plot_xy_mov_tracks(df_bad, title='Filtered TrackIDs paths', output_dir=output_dir)
+
+    plot_xy_mov_tracks(df_clean,title='Bad TrackIDs paths', output_dir=output_dir)
+
+
+
+
+    #%% Plot PIV and Tracking Velocities
+
+    df_piv = load_piv_data(event=event)
+    df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)
+
+    plot_piv_and_tracking_velocity(df_piv_mova, event=event, start_frame=start_frame,
+                                   end_frame=end_frame, output_dir=output_dir, fig_size=fig_size)
 
     print('\n === finished :) === \n')
-
-
 
 if __name__ == "__main__":
     main()

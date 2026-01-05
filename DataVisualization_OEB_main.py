@@ -25,7 +25,7 @@ def main():
     df_time = extract_frame_time_table(df_raw)
 
 
-    #%% FILTER DATA -- Define parameters
+    #%% FILTER DATA -- Define parameters ----------------------------------------------------------------------------
 
     # Choose Frame range to analyse
     start_frame = 32000
@@ -49,11 +49,14 @@ def main():
 
     fig_size = (14,7)
 
+    # Moving Average, parameters
+    window_size = 7
+    gap_threshold = 400
 
     ylim_velocity = (0, 5)
     ylim_grainsize = (0, 1)
 
-    #%%-- FILTER DATA -- apply filter functions
+    #%%-- FILTER DATA -- apply filter functions ---------------------------------------------------------------------
 
     # --- Filter TRACKS
     df_filtered_01 = filter_tracks(df_raw, min_track_length=min_track_length, max_track_length=max_track_length,
@@ -83,7 +86,7 @@ def main():
 
 
 
-    #%% Stats PER Frame
+    #%% Stats PER Frame --------------------------------------------------------------------------------------
     # Compute per-frame statistics and keep only essential cols
     df_stats = compute_mean_median_per_frame(df_clean)
 
@@ -91,7 +94,7 @@ def main():
     df_stats.to_csv(output_dir / f"df_stats_{event}.csv")
 
     # Prepare dataframe for plotting (moving averages)
-    df_mova = prepare_df_for_plot(df_stats, window_size=7, gap_threshold=400)
+    df_mova = prepare_df_for_plot(df_stats, window_size=window_size, gap_threshold=gap_threshold)
     # clean frames with very low number of detections
 
     df_mova = clean_frames_low_detections(df_mova, min_num_detections = 2)
@@ -103,7 +106,7 @@ def main():
 
 
 
-    #%% DATA Visualization - PLOTS
+    #%% DATA Visualization - PLOTS --------------------------------------------------------------------------------
     #  --- MEAN Plots
     #  Plot velocity
     plot_variable_against_frame(
@@ -138,17 +141,30 @@ def main():
 
 
 
-    #%% Plot X-Y Track Mov
+    # Plot number of lost tracks
+    plot_variable_against_frame(
+        df_mova=df_mova,
+        plot_variable="tracks",
+        statistic="mean",  # statistic is ignored for tracks
+        color_ma="red",
+        label_name='number of boulder detections',
+        y_label='Number of Detections',
+        y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
+        output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time, fig_size=fig_size)
+
+
+
+
+    #%% Plot X-Y Track Mov --------------------------------------------------------------------------------------
     df_bad = df_bad[df_bad['frame'].between(start_frame, end_frame)]
-    df_clean = df_clean[df_clean['frame'].between(start_frame, end_frame)]
+    #df_clean = df_clean[df_clean['frame'].between(start_frame, end_frame)]
     plot_xy_mov_tracks(df_bad, title='Bad TrackIDs paths', output_dir=output_dir)
 
-    plot_xy_mov_tracks(df_clean,title='Filtered TrackIDs paths', output_dir=output_dir)
+    #plot_xy_mov_tracks(df_clean,title='Filtered TrackIDs paths', output_dir=output_dir)
 
 
 
-
-    #%% Plot PIV and Tracking Velocities
+    #%% Plot PIV and Tracking Velocities ------------------------------------------------------------------------
 
     df_piv = load_piv_data(event=event)
     df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)

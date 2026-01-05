@@ -107,7 +107,7 @@ def prepare_df_for_plot(
 def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
                                 color_ma: str, label_name: str, y_label: str,
                                 y_lim: tuple[float, float] | None = None, output_dir: Path | None = None,
-                                start_frame=None, end_frame=None, show_plot=True, fig_size: tuple[int, int] = None,
+                                start_frame=None, end_frame=None, show_plot=False, fig_size: tuple[int, int] = None,
                                 df_time: pd.DataFrame | None = None):
     """
     Plot a per-frame variable (velocity, grainsize, or tracks) against frame number,
@@ -374,4 +374,3 @@ def plot_piv_and_tracking_velocity(
     output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
-    plt.show()

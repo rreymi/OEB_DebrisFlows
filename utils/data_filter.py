@@ -151,7 +151,7 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
             y_start = track_df[value_column].iloc[8]
             y_end = track_df[value_column].iloc[-10]
 
-        if abs(y_end - y_start) > yaxis_min_length:
+        if y_end - y_start < -yaxis_min_length:
             moving_tracks.append(track_id)
 
     filtered_df = df[df[track_column].isin(moving_tracks)]

@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
-from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking
-from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities
+from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity, plot_track_velocities
 
 
 def main():
@@ -28,22 +28,22 @@ def main():
     #%% FILTER DATA -- Define parameters ----------------------------------------------------------------------------
 
     # Choose Frame range to analyse
-    start_frame = 32000
-    end_frame = 46000
+    start_frame = 9500
+    end_frame = 13000
 
     # Define track lengths
     min_track_length = 5
     max_track_length = 300
 
     # Velocity limits
-    max_std_track_vel = 1
+    max_std_track_vel = 1.5
     min_median_track_vel = 0.1
 
     # Jumping threshold
     jump_threshold = 1
 
     # Y-axis movement
-    yaxis_min_length = 0.5
+    yaxis_min_length = 0.4
 
     #%% Plot parameters
 
@@ -91,16 +91,21 @@ def main():
     df_stats = compute_mean_median_per_frame(df_clean)
 
     # save CSV of STATS after Filtering
-    df_stats.to_csv(output_dir / f"df_stats_{event}.csv")
+    #df_stats.to_csv(output_dir / f"df_stats_{event}.csv")
 
     # Prepare dataframe for plotting (moving averages)
     df_mova = prepare_df_for_plot(df_stats, window_size=window_size, gap_threshold=gap_threshold)
-    # clean frames with very low number of detections
 
+    # clean frames with very low number of detections
     df_mova = clean_frames_low_detections(df_mova, min_num_detections = 2)
 
     # save CSV of MOVA (plot table)
-    df_mova.to_csv(output_dir / f"df_mova_{event}.csv")
+    #df_mova.to_csv(output_dir / f"df_mova_{event}.csv")
+
+
+    #%% Stats PER Track --------------------------
+
+
 
 
 
@@ -156,9 +161,7 @@ def main():
 
 
     #%% Plot X-Y Track Mov --------------------------------------------------------------------------------------
-    df_bad = df_bad[df_bad['frame'].between(start_frame, end_frame)]
-    #df_clean = df_clean[df_clean['frame'].between(start_frame, end_frame)]
-    plot_xy_mov_tracks(df_bad, title='Bad TrackIDs paths', output_dir=output_dir)
+    #plot_xy_mov_tracks(df_bad, title='Bad TrackIDs paths', output_dir=output_dir)
 
     #plot_xy_mov_tracks(df_clean,title='Filtered TrackIDs paths', output_dir=output_dir)
 
@@ -171,6 +174,14 @@ def main():
 
     plot_piv_and_tracking_velocity(df_piv_mova, event=event, start_frame=start_frame,
                                    end_frame=end_frame, output_dir=output_dir, fig_size=fig_size)
+
+
+    df_track_velocities = compute_track_velocities(df_clean)
+
+    plot_track_velocities(df_track_velocities=df_track_velocities,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
+                          end_frame=end_frame,df_time=df_time,fig_size=fig_size, output_dir=output_dir)
+
+
 
     print('\n === finished :) === \n')
 

@@ -52,10 +52,7 @@ def prepare_df_for_plot(
     gap_threshold : int
         Max allowed frame gap before inserting NaNs
 
-    Returns
-    -------
-    pd.DataFrame
-        Dataframe ready for plotting
+
     """
 
     # --- Drop duplicates & sort ---
@@ -373,4 +370,111 @@ def plot_piv_and_tracking_velocity(
     fig_name = f"PIV_and_Tracking_velocities_{event}_{start_frame}_{end_frame}.jpeg"
     output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+
+def plot_track_velocities(
+    df_track_velocities: pd.DataFrame,
+    df_mova: pd.DataFrame,
+    df_piv_mova: pd.DataFrame,
+    event: str,
+    start_frame: int,
+    end_frame: int,
+    df_time: pd.DataFrame,
+    fig_size: tuple[int, int] = None,
+    output_dir: Path | None = None,
+) -> None:
+
+
+    # Set default frame limits if not provided
+    if start_frame is None:
+        start_frame = df_track_velocities['frame'].min()
+    if end_frame is None:
+        end_frame = df_track_velocities['frame'].max()
+
+    # --- Frame -> time mapping for top axis ---
+    frame_to_time = {}
+    if df_time is not None and not df_time.empty:
+        # assume df_time is already cleaned and sorted
+        frame_to_time = dict(zip(df_time['frame'], df_time['time']))
+
+    # --- Function to convert frame -> MM:SS ---
+    def frame_to_mmss(frame):
+        if not frame_to_time:
+            return ""
+        nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
+        seconds = frame_to_time[nearest_frame]
+        if pd.isna(seconds):
+            return ""
+        minutes = int(seconds) // 60
+        secs = int(seconds) % 60
+        return f"{minutes:02d}:{secs:02d}"
+
+    # --- Start plotting
+    fig, ax = plt.subplots(figsize=fig_size)
+
+    # Raw values
+    ax.scatter(
+        df_track_velocities['center_frame'],
+        df_track_velocities['mean_track_velocity'],
+        label=f"Mean track velocity",
+        color="gray",
+        alpha=0.9,
+        marker='.'
+    )
+
+    ax.plot(
+        df_mova['frame'],
+        df_mova['mean_velocity_per_frame'],
+        label='Mean velocity per frame',
+        linewidth=1,
+        alpha=0.9
+    )
+
+    ax.plot(
+        df_mova['frame'],
+        df_mova['mean_vel_ma'],
+        label='Moving average of mean velocity per frame',
+        linewidth=2
+    )
+
+    ax.plot(df_piv_mova['mova_frame'],
+            df_piv_mova['piv_vel_smoothed'],
+            color='goldenrod',
+            linewidth=1.75,
+            label="Smoothed PIV Velocity")
+
+    # --- X axis
+    ax.set_xlabel("Frame Number", fontsize=16)
+    ax.set_xlim(start_frame, end_frame)
+
+
+    # --- Y axis
+    ax.set_ylabel('Velocity (m/s)', fontsize=16)
+    ax.set_ylim(0, 5)  # Y-axis max * 1.1 to increase dist
+
+    ax.tick_params(axis='both', labelsize=15, pad=8, length=4, width=1)
+    ax.grid(True, linestyle="-", alpha=0.5)
+
+    # --- TOP axis (time in MM:SS)
+    ax_top = ax.twiny()
+    ax_top.set_xlim(ax.get_xlim())
+    ax_top.set_xlabel("Time [MM:SS]", fontsize=16)
+
+    # Set tick locations and formatting
+    ax_top.xaxis.set_major_locator(ticker.AutoLocator())
+    ax_top.xaxis.set_major_formatter(ticker.FuncFormatter(lambda val, pos: frame_to_mmss(val)))
+    ax_top.tick_params(axis='x', labelsize=15, pad=8, length=4, width=1)
+
+    # Legend
+    leg = ax.legend(frameon=True, fontsize=16, loc="best", facecolor="white", edgecolor="black")
+    plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
+
+    fig.tight_layout()
+
+
+    fig_name = f"Track_velocities_{event}_{start_frame}_{end_frame}.jpeg"
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+
 

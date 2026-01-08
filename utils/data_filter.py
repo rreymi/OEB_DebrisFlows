@@ -136,7 +136,7 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
 
         n = len(track_df)
 
-        if n < 4:
+        if n < 5:
             continue
         elif n < 25:  # too short, just use first and last
             y_start = track_df[value_column].iloc[2]

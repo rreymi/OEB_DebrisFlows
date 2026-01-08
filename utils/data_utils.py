@@ -177,3 +177,47 @@ def merge_piv_and_tracking(df_piv: pd.DataFrame, df_mova: pd.DataFrame) -> pd.Da
 
     return df_merged
 
+
+def compute_track_velocities(
+    df_filtered: pd.DataFrame,
+    columns: list = None,
+    ) -> pd.DataFrame:
+
+    if columns is None:
+        columns = ['frame', 'track', 'velocity', 'time']
+
+    # Reduce size by keeping only essential columns
+    df = df_filtered[columns].copy()
+
+    mean_vel = (
+        df.groupby("track")["velocity"]
+          .mean()
+          .rename("mean_track_velocity")
+    )
+
+    median_vel = (
+        df.groupby("track")["velocity"]
+          .median()
+          .rename("median_track_velocity")
+    )
+
+    # 2) Center frame per track
+    # index within each track
+    idx = df.groupby("track").cumcount()
+    sizes = df.groupby("track")["frame"].transform("size")
+    center_mask = idx == (sizes  // 2)
+
+    center_frame = (
+        df.loc[center_mask, ["track", "frame"]]
+          .set_index("track")["frame"]
+          .rename("center_frame")
+    )
+
+    # 3) Combine
+    result = (
+        pd.concat([center_frame, mean_vel, median_vel], axis=1)
+          .reset_index()
+          .sort_values("center_frame")
+    )
+
+    return result

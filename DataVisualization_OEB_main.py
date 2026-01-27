@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
-from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities, compute_track_velocities_lowess
 from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity, plot_track_velocities
 
 
@@ -28,8 +28,8 @@ def main():
     #%% FILTER DATA -- Define parameters ----------------------------------------------------------------------------
 
     # Choose Frame range to analyse
-    start_frame = 9500
-    end_frame = 13000
+    start_frame = 0
+    end_frame = 100000
 
     # Define track lengths
     min_track_length = 5
@@ -103,14 +103,8 @@ def main():
     #df_mova.to_csv(output_dir / f"df_mova_{event}.csv")
 
 
-    #%% Stats PER Track --------------------------
 
-
-
-
-
-
-
+    '''
     #%% DATA Visualization - PLOTS --------------------------------------------------------------------------------
     #  --- MEAN Plots
     #  Plot velocity
@@ -164,7 +158,7 @@ def main():
     #plot_xy_mov_tracks(df_bad, title='Bad TrackIDs paths', output_dir=output_dir)
 
     #plot_xy_mov_tracks(df_clean,title='Filtered TrackIDs paths', output_dir=output_dir)
-
+    '''
 
 
     #%% Plot PIV and Tracking Velocities ------------------------------------------------------------------------
@@ -172,15 +166,23 @@ def main():
     df_piv = load_piv_data(event=event)
     df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)
 
-    plot_piv_and_tracking_velocity(df_piv_mova, event=event, start_frame=start_frame,
-                                   end_frame=end_frame, output_dir=output_dir, fig_size=fig_size)
+    #plot_piv_and_tracking_velocity(df_piv_mova,df_mova, event=event, start_frame=start_frame,
+    #                               end_frame=end_frame, output_dir=output_dir, fig_size=fig_size)
 
 
-    df_track_velocities = compute_track_velocities(df_clean)
+    [df_track_velocities, df_track_velocities_stats] = compute_track_velocities(df_clean)
+    [df_track_velocities, df_track_velocities_lowess] = compute_track_velocities_lowess(df_clean)
 
-    plot_track_velocities(df_track_velocities=df_track_velocities,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
-                          end_frame=end_frame,df_time=df_time,fig_size=fig_size, output_dir=output_dir)
+    #plot_track_velocities(df_track_velocities=df_track_velocities,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
+    #                      end_frame=end_frame,df_time=df_time,fig_size=fig_size, output_dir=output_dir)
 
+    # SAVE DFs
+    df_clean.to_parquet(output_dir / f"df_clean_{event}.parquet")
+    df_mova.to_parquet(output_dir / f"df_mova_{event}.parquet")
+    df_piv_mova.to_parquet(output_dir / f"df_piv_mova_{event}.parquet")
+    df_track_velocities.to_parquet(output_dir / f"df_track_velocities_{event}.parquet")
+    df_track_velocities_stats.to_parquet(output_dir / f"df_track_velocities_stats_{event}.parquet")
+    df_track_velocities_lowess.to_parquet(output_dir / f"df_track_velocities_lowess_{event}.parquet")
 
 
     print('\n === finished :) === \n')

@@ -28,22 +28,22 @@ def main():
     #%% FILTER DATA -- Define parameters ----------------------------------------------------------------------------
 
     # Choose Frame range to analyse
-    start_frame = 32000
-    end_frame = 46000
+    start_frame = 9500
+    end_frame = 13000
 
     # Define track lengths
     min_track_length = 5
     max_track_length = 300
 
     # Velocity limits
-    max_std_track_vel = 1
+    max_std_track_vel = 1.5
     min_median_track_vel = 0.1
 
     # Jumping threshold
     jump_threshold = 1
 
     # Y-axis movement
-    yaxis_min_length = 0.5
+    yaxis_min_length = 0.4
 
     #%% Plot parameters
 
@@ -58,10 +58,24 @@ def main():
 
     #%%-- FILTER DATA -- apply filter functions ---------------------------------------------------------------------
 
+    # --- Filter TRACKS
+    df_filtered_01 = filter_tracks(df_raw, min_track_length=min_track_length, max_track_length=max_track_length,
+                                      max_std_track_vel=max_std_track_vel, min_median_track_vel=min_median_track_vel)
+
+
+    # --- Remove Tracks that jump
+    df_filtered_02, df_bad = filter_tracks_that_jump(df_filtered_01, jump_threshold= jump_threshold,return_bad=True)
+
+
+    # --- Remove Tracks that stay stationary or move less than yaxis_min_length
+    df_filtered_03 = filter_tracks_by_movement(df_filtered_02, yaxis_min_length=yaxis_min_length)
+
+    # Only keep nonzero Velocity-rows
+    df_filtered_04 = filter_rows_nonzero_velocity(df_filtered_03)
 
 
 
-
+    df_clean = df_filtered_04
     #df_clean = df_raw
     n_tracks = df_clean['track'].nunique()
     n_tracks_raw = df_raw['track'].nunique()
@@ -69,11 +83,6 @@ def main():
         f"  Remaining track IDs: {n_tracks}\n"
         f"  Removed track IDS:   {n_tracks_raw - n_tracks}\n"
         f"  Total tracks IDs:    {n_tracks_raw}")
-
-
-
-    #%% Stats PER Frame --------------------------------------------------------------------------------------
-
 
 
 

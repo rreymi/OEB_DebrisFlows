@@ -3,10 +3,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
 from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities
 from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, \
-    plot_piv_and_tracking_velocity, plot_track_velocities_mova_per_frame, plot_track_velocities, \
+    plot_piv_and_tracking_velocity, plot_track_velocities_mova_per_frame, plot_track_velocities_mean, \
     plot_track_velocities_lowess
 
 
@@ -33,19 +34,15 @@ def main():
     df_clean = pd.read_parquet(output_dir / f"df_clean_{event}.parquet")
     df_mova = pd.read_parquet(output_dir / f"df_mova_{event}.parquet")
     df_piv_mova = pd.read_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-    df_track_velocities = pd.read_parquet(output_dir / f"df_track_velocities_{event}.parquet")
-    df_track_velocities_stats = pd.read_parquet(output_dir / f"df_track_velocities_stats_{event}.parquet")
-    df_track_velocities_lowess = pd.read_parquet(output_dir / f"df_track_velocities_lowess_{event}.parquet")
+    df_per_track_statistic = pd.read_parquet(output_dir / f"df_per_track_statistic_{event}.parquet")
+    df_lowess = pd.read_parquet(output_dir / f"df_lowess_{event}.parquet")
 
     # Choose Frame range to analyse------------------------------------------------------------------
-    start_frame = 34500
-    end_frame = 36000
+    start_frame = 33000
+    end_frame = 45000
 
     #%% Plot parameters
-
     fig_size = (14,7)
-
-
 
     ylim_velocity = (0, 5)
     ylim_grainsize = (0, 1)
@@ -111,16 +108,17 @@ def main():
     plot_piv_and_tracking_velocity(df_piv_mova,df_mova,df_time, event=event, start_frame=start_frame,
                                    end_frame=end_frame, output_dir=output_dir, fig_size=fig_size, ylim_velocity=ylim_velocity)
 
-
-    plot_track_velocities_mova_per_frame(df_track_velocities=df_track_velocities,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
+    '''
+    plot_track_velocities_mova_per_frame(df_track_velocities=df_frame_stats,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
                           end_frame=end_frame,df_time=df_time,fig_size=fig_size, output_dir=output_dir, ylim_velocity=ylim_velocity)
+    
 
-    plot_track_velocities(df_track_velocities,df_track_velocities_stats,df_piv_mova,
+    plot_track_velocities_mean(df_track_velocities= df_frame_stats,df_piv_mova,
                           event=event, start_frame=start_frame,end_frame=end_frame,
                           df_time=df_time, fig_size=fig_size, output_dir=output_dir,
                           ylim_velocity=ylim_velocity)
-
-    plot_track_velocities_lowess(df_track_velocities, df_track_velocities_lowess, df_piv_mova,
+    '''
+    plot_track_velocities_lowess(df_per_track_statistic, df_lowess, df_piv_mova, stat_type="median",
                           event=event, start_frame=start_frame, end_frame=end_frame,
                           df_time=df_time, fig_size=fig_size, output_dir=output_dir,
                           ylim_velocity=ylim_velocity)

@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from utils.data_filter import filter_tracks,filter_tracks_by_movement, filter_rows_nonzero_velocity, filter_tracks_that_jump, clean_frames_low_detections
-from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities, compute_track_velocities_lowess
-from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity, plot_track_velocities
+from utils.data_utils import load_and_merge_event_data, compute_mean_median_per_frame, extract_frame_time_table, load_piv_data, merge_piv_and_tracking, compute_track_velocities, compute_track_velocities
+from utils.plot_utils import plot_variable_against_frame, prepare_df_for_plot, plot_xy_mov_tracks, plot_piv_and_tracking_velocity, plot_track_velocities_mean
 
 
 def main():
@@ -28,8 +28,8 @@ def main():
     #%% FILTER DATA -- Define parameters ----------------------------------------------------------------------------
 
     # Choose Frame range to analyse
-    start_frame = 0
-    end_frame = 100000
+    start_frame = 33000
+    end_frame = 45000
 
     # Define track lengths
     min_track_length = 5
@@ -170,8 +170,7 @@ def main():
     #                               end_frame=end_frame, output_dir=output_dir, fig_size=fig_size)
 
 
-    [df_track_velocities, df_track_velocities_stats] = compute_track_velocities(df_clean)
-    [df_track_velocities, df_track_velocities_lowess] = compute_track_velocities_lowess(df_clean)
+    [df_per_track_statistic, df_lowess] = compute_track_velocities(df_clean, lowess_frame_window = 30, lowess_iterations = 1)
 
     #plot_track_velocities(df_track_velocities=df_track_velocities,df_mova=df_mova, df_piv_mova=df_piv_mova, event=event, start_frame=start_frame,
     #                      end_frame=end_frame,df_time=df_time,fig_size=fig_size, output_dir=output_dir)
@@ -180,9 +179,8 @@ def main():
     df_clean.to_parquet(output_dir / f"df_clean_{event}.parquet")
     df_mova.to_parquet(output_dir / f"df_mova_{event}.parquet")
     df_piv_mova.to_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-    df_track_velocities.to_parquet(output_dir / f"df_track_velocities_{event}.parquet")
-    df_track_velocities_stats.to_parquet(output_dir / f"df_track_velocities_stats_{event}.parquet")
-    df_track_velocities_lowess.to_parquet(output_dir / f"df_track_velocities_lowess_{event}.parquet")
+    df_per_track_statistic.to_parquet(output_dir / f"df_per_track_statistic_{event}.parquet")
+    df_lowess.to_parquet(output_dir / f"df_lowess_{event}.parquet")
 
 
     print('\n === finished :) === \n')

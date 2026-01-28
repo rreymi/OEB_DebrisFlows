@@ -326,21 +326,28 @@ def plot_piv_and_tracking_velocity(
     # --- Plot velocities ---
     ax.plot(df_piv_mova['frame'],
             df_piv_mova['piv_vel_smoothed'],
-            color='goldenrod',
-            linewidth=1.75,
-            label="Smoothed PIV Velocity")
+            label="Smoothed PIV Velocity",
+            color='tab:red',
+            linewidth=1.3,
+            alpha=0.85,
+            zorder=2
+            )
 
     ax.plot(df_mova['frame'],
             df_mova['mean_velocity_per_frame'],
-            color='lightgray',
-            alpha=0.9,
-            linewidth=1)
+            color='0.7',
+            alpha=0.55,
+            linewidth=1,
+            zorder=1)
 
     ax.plot(df_mova['frame'],
             df_mova['mean_vel_ma'],
-            color = 'Steelblue',
-            linewidth=1.75,
-            label="Tracking Velocity per frame")
+            label="Tracking Velocity per frame",
+            color='tab:blue',
+            linewidth=2.2,
+            alpha=1.0,
+            zorder=3
+            )
 
 
     # --- Configure lower x-axis ---
@@ -381,9 +388,8 @@ def plot_piv_and_tracking_velocity(
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
 
-def plot_track_velocities(
+def plot_track_velocities_mean(
     df_track_velocities: pd.DataFrame,
-    df_track_velocities_stats: pd.DataFrame,
     df_piv_mova: pd.DataFrame,
     event: str,
     start_frame: int,
@@ -437,10 +443,10 @@ def plot_track_velocities(
         rasterized=True  # optional but recommended
     )
 
-
+    # Moving Average
     ax.plot(
-        df_track_velocities_stats['center_frame'],
-        df_track_velocities_stats['median_velocity_roll'],
+        df_track_velocities['center_frame'],
+        df_track_velocities['mean_velocity_roll'],
         label='Moving average track velocity per frame',
         color='tab:blue',
         linewidth=2.2,
@@ -448,6 +454,7 @@ def plot_track_velocities(
         zorder=3
     )
 
+    # PIVlab Surface Velocity
     ax.plot(
         df_piv_mova['frame'],
         df_piv_mova['piv_vel_smoothed'],
@@ -457,7 +464,6 @@ def plot_track_velocities(
         alpha=0.85,
         zorder=2
     )
-
 
 
     # --- X axis
@@ -489,7 +495,7 @@ def plot_track_velocities(
     fig.tight_layout()
 
 
-    fig_name = f"Track_velocities_stats_{event}_{start_frame}_{end_frame}.jpeg"
+    fig_name = f"Mean_Track_velocities_{event}_{start_frame}_{end_frame}.jpeg"
     output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
@@ -603,9 +609,10 @@ def plot_track_velocities_mova_per_frame(
 
 
 def plot_track_velocities_lowess(
-    df_track_velocities: pd.DataFrame,
-    df_track_velocities_lowess: pd.DataFrame,
+    df_per_track_statistic: pd.DataFrame,
+    df_lowess: pd.DataFrame,
     df_piv_mova: pd.DataFrame,
+    stat_type: str,
     event: str,
     start_frame: int,
     end_frame: int,
@@ -615,12 +622,11 @@ def plot_track_velocities_lowess(
     ylim_velocity: tuple[float, float] | None = None,
 ) -> None:
 
-
     # Set default frame limits if not provided
     if start_frame is None:
-        start_frame = df_track_velocities['frame'].min()
+        start_frame = df_per_track_statistic['frame'].min()
     if end_frame is None:
-        end_frame = df_track_velocities['frame'].max()
+        end_frame = df_per_track_statistic['frame'].max()
 
     # --- Frame -> time mapping for top axis ---
     frame_to_time = {}
@@ -640,14 +646,27 @@ def plot_track_velocities_lowess(
         secs = int(seconds) % 60
         return f"{minutes:02d}:{secs:02d}"
 
+    if stat_type == "mean":
+        track_velocity = "mean_track_velocity"
+        lowess_track_velocity = "lowess_mean_track_velocity"
+        label_raw = "Mean track velocity"
+        label_smooth = "Smoothed mean track velocity"
+    elif stat_type == "median":
+        track_velocity = "median_track_velocity"
+        lowess_track_velocity = "lowess_median_track_velocity"
+        label_raw = "Median track velocity"
+        label_smooth = "Smoothed median track velocity"
+    else:
+        raise ValueError("plot_type must be either 'mean' or 'median'")
+
     # --- Start plotting
     fig, ax = plt.subplots(figsize=fig_size)
 
     # Raw values
     ax.scatter(
-        df_track_velocities["center_frame"],
-        df_track_velocities["mean_track_velocity"],
-        label="Mean track velocity",
+        df_per_track_statistic["center_frame"],
+        df_per_track_statistic[track_velocity],
+        label=label_raw,
         s=10,  # small marker
         c="0.7",  # light gray (neutral, print-safe)
         alpha=0.45,  # faint visibility
@@ -660,9 +679,9 @@ def plot_track_velocities_lowess(
 
 
     ax.plot(
-        df_track_velocities_lowess['center_frame'],
-        df_track_velocities_lowess['smoothed_mean_velocity'],
-        label='Smoothed mean track velocity',
+        df_lowess['frame'],
+        df_lowess[lowess_track_velocity],
+        label=label_smooth,
         color='tab:blue',
         linewidth=2.2,
         alpha=1.0,
@@ -678,7 +697,6 @@ def plot_track_velocities_lowess(
         alpha=0.85,
         zorder=2
     )
-
 
 
     # --- X axis
@@ -709,7 +727,6 @@ def plot_track_velocities_lowess(
 
     fig.tight_layout()
 
-
-    fig_name = f"Track_velocities_LOWESS_{event}_{start_frame}_{end_frame}.jpeg"
+    fig_name = f"PIV_and_{stat_type}_Track_velocities_{event}_{start_frame}_{end_frame}.jpeg"
     output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")

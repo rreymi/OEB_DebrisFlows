@@ -1,0 +1,62 @@
+from pathlib import Path
+
+# --------------------------------------------
+# --- Event details
+# --------------------------------------------
+
+EVENT_YEAR = "2024"
+EVENT_MONTH = "06"
+EVENT_DAY = "14"
+
+EVENT = f"{EVENT_YEAR}_{EVENT_MONTH}_{EVENT_DAY}"
+
+# --------------------------------------------
+# --- Output paths
+# --------------------------------------------
+BASE_OUTPUT_DIR = Path.cwd() / "output"
+OUTPUT_DIR = BASE_OUTPUT_DIR / EVENT
+
+
+# --------------------------------------------
+# --- FILTER parameters
+# --------------------------------------------
+MIN_TRACK_LENGTH = 5
+MAX_TRACK_LENGTH = 300
+
+MAX_STD_TRACK_VEL = 1.5
+MIN_MEDIAN_TRACK_VEL = 0.1
+
+JUMP_THRESHOLD = 1
+YAXIS_MIN_LENGTH = 0.4
+
+# --------------------------------------------
+# --- Calculation parameters per frame stats
+# --------------------------------------------
+MOVING_AVERAGE_WINDOW_SIZE = 9
+GAP_THRESHOLD = 400
+# clean frames with very low number of detections
+MIN_NUM_DETECTIONS = 2
+
+# --------------------------------------------
+# --- Calculation parameters per TRACK
+# --------------------------------------------
+LOWESS_ITERATIONS = 1
+LOWESS_FRAME_WINDOW_SIZE = 40
+
+
+# --------------------------------------------
+# --- Plot Parameters
+# --------------------------------------------
+
+# GENERAL
+FIG_SIZE = (14,7)
+YLIM_VELOCITY = (0, 5)
+YLIM_GRAINSIZE = (0, 1)
+
+# PER FRAME
+
+
+
+# PER TRACK
+
+STATISTIC_TYPE = "mean" # or "median"

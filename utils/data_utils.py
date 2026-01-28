@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from statsmodels.nonparametric.smoothers_lowess import lowess
-
+from typing import Tuple
 from pandas import DataFrame
 
 
@@ -182,33 +182,35 @@ def merge_piv_and_tracking(df_piv: pd.DataFrame, df_mova: pd.DataFrame) -> pd.Da
 
 def compute_track_velocities(
     df_filtered: pd.DataFrame,
-    columns: list = None,
-    ) -> tuple[DataFrame, Any]:
+    columns: list | None = None,
+    lowess_frame_window: int = 20,
+    lowess_iterations: int = 0,
+    min_tracks: int = 5,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     if columns is None:
-        columns = ['frame', 'track', 'velocity', 'time']
+        columns = ["frame", "track", "velocity", "grainsize", "time"]
 
-    # Reduce size by keeping only essential columns
+
+    # 1) Reduce dataframe
     df = df_filtered[columns].copy()
 
-    mean_vel = (
-        df.groupby("track")["velocity"]
-          .mean()
-          .rename("mean_track_velocity")
+    # Compute one representative frame and summary statistics per track
+    # 2) Per-track statistics
+    track_stats = (
+        df.groupby("track")
+        .agg(
+            mean_track_velocity=("velocity", "mean"),
+            median_track_velocity=("velocity", "median"),
+            mean_track_grainsize=("grainsize", "mean"),
+            median_track_grainsize=("grainsize", "median"),
+        )
     )
 
-    median_vel = (
-        df.groupby("track")["velocity"]
-          .median()
-          .rename("median_track_velocity")
-    )
-
-
-    # 2) Center frame per track
-    # index within each track
+    # 3) Center frame per track
     idx = df.groupby("track").cumcount()
     sizes = df.groupby("track")["frame"].transform("size")
-    center_mask = idx == (sizes  // 2)
+    center_mask = idx == (sizes // 2)
 
     center_frame = (
         df.loc[center_mask, ["track", "frame"]]
@@ -216,191 +218,84 @@ def compute_track_velocities(
           .rename("center_frame")
     )
 
-    # 3) Combine
-    result = (
-        pd.concat([center_frame, mean_vel, median_vel], axis=1)
-          .reset_index()
-          .sort_values("center_frame")
+
+    # 4) Combine - trackID with center frame + all stats
+    # Take all per-track statistics, attach the representative frame of each track,
+    # turn the index into a column, and order tracks in time
+
+    df_per_track_statistic = (
+        track_stats
+        .join(center_frame)
+        .reset_index()
+        .sort_values("center_frame")
     )
 
-    #*****
-    result_track_mean_median = (
-        result
+    '''
+    # 5) Aggregate by center frame + rolling mean/median
+    df_frame_stats = (
+        df_track_velocities
         .groupby("center_frame")["mean_track_velocity"]
         .agg(
             mean_velocity="mean",
             median_velocity="median",
         )
         .reset_index()
-    )
-
-    window = 9
-
-    result_track_mean_median = (
-        result_track_mean_median
         .sort_values("center_frame")
         .assign(
             mean_velocity_roll=lambda d: (
                 d["mean_velocity"]
-                .rolling(window=window, center=True, min_periods=1)
+                .rolling(rolling_window, center=True, min_periods=1)
                 .mean()
             ),
             median_velocity_roll=lambda d: (
                 d["median_velocity"]
-                .rolling(window=window, center=True, min_periods=1)
+                .rolling(rolling_window, center=True, min_periods=1)
                 .mean()
             ),
         )
     )
+    '''
 
-    return result, result_track_mean_median
-'''
-def compute_track_velocities_lowess(
-    df_filtered: pd.DataFrame,
-    columns: list = None,
-    ) -> tuple[DataFrame, Any]:
+    # 5) LOWESS smoothing
+    n_frames = df["frame"].nunique()
+    frac = lowess_frame_window / n_frames
 
-    if columns is None:
-        columns = ['frame', 'track', 'velocity', 'time']
-
-    # Reduce size by keeping only essential columns
-    df = df_filtered[columns].copy()
-
-    mean_track_velocity = (
-        df.groupby("track")["velocity"]
-          .mean()
-          .rename("mean_track_velocity")
-    )
-
-    median_track_velocity = (
-        df.groupby("track")["velocity"]
-          .median()
-          .rename("median_track_velocity")
-    )
-
-    # 2) Center frame per track
-    # index within each track
-    idx = df.groupby("track").cumcount()
-    sizes = df.groupby("track")["frame"].transform("size")
-    center_mask = idx == (sizes  // 2)
-
-    center_frame = (
-        df.loc[center_mask, ["track", "frame"]]
-          .set_index("track")["frame"]
-          .rename("center_frame")
-    )
-
-    # 3) Combine
-    result = (
-        pd.concat([center_frame, mean_track_velocity, median_track_velocity], axis=1)
-          .reset_index()
-          .sort_values("center_frame")
-    )
-
-    x = result["center_frame"].to_numpy()
-    y = result["mean_track_velocity"].to_numpy()
-
-    frame_window = 20
-    n_frame = df_filtered['frame'].nunique()
-    fraction = frame_window / n_frame
-
-    smoothed = lowess(
-        y,
-        x,
-        frac=fraction,  #
-        it=0,  # use it=1 if you want robust (outlier-resistant)
+    lowess_mean = lowess(
+        endog=df_per_track_statistic["mean_track_velocity"],
+        exog=df_per_track_statistic["center_frame"],
+        frac=frac,
+        it=lowess_iterations,
         return_sorted=True
     )
 
-    x_s, y_s = smoothed.T
-    # Create a new DataFrame with smoothed results
-    df_lowess = pd.DataFrame({
-        "center_frame": x_s,
-        "smoothed_mean_velocity": y_s
-    })
-
-    # Optional: inspect the first few rows
-    df_lowess = df_lowess.drop_duplicates(subset="center_frame", keep="first")
-
-
-    return result, df_lowess
-'''
-
-def compute_track_velocities_lowess(
-    df_filtered: pd.DataFrame,
-    columns: list = None,
-    ) -> tuple[DataFrame, Any]:
-
-    if columns is None:
-        columns = ['frame', 'track', 'velocity', 'time']
-
-    # Reduce size by keeping only essential columns
-    df = df_filtered[columns].copy()
-    # 1) Count number of tracks per frame
-    tracks_per_frame = df.groupby("frame")["track"].nunique()
-
-    # 2) Minimum tracks threshold
-    min_tracks = 5
-
-    mean_track_velocity = (
-        df.groupby("track")["velocity"]
-          .mean()
-          .rename("mean_track_velocity")
-    )
-
-    median_track_velocity = (
-        df.groupby("track")["velocity"]
-          .median()
-          .rename("median_track_velocity")
-    )
-
-    # 2) Center frame per track
-    # index within each track
-    idx = df.groupby("track").cumcount()
-    sizes = df.groupby("track")["frame"].transform("size")
-    center_mask = idx == (sizes  // 2)
-
-    center_frame = (
-        df.loc[center_mask, ["track", "frame"]]
-          .set_index("track")["frame"]
-          .rename("center_frame")
-    )
-
-    # 3) Combine
-    result = (
-        pd.concat([center_frame, mean_track_velocity, median_track_velocity], axis=1)
-          .reset_index()
-          .sort_values("center_frame")
-    )
-
-    x = result["center_frame"].to_numpy()
-    y = result["mean_track_velocity"].to_numpy()
-
-    frame_window = 20
-    n_frame = df_filtered['frame'].nunique()
-    fraction = frame_window / n_frame
-
-    smoothed = lowess(
-        y,
-        x,
-        frac=fraction,  #
-        it=0,  # use it=1 if you want robust (outlier-resistant)
+    lowess_median = lowess(
+        endog=df_per_track_statistic["median_track_velocity"],
+        exog=df_per_track_statistic["center_frame"],
+        frac=frac,
+        it=lowess_iterations,
         return_sorted=True
     )
-    x_s, y_s = smoothed.T
 
-    # 8) Mask frames with too few tracks
-    mask = tracks_per_frame.reindex(x_s, method='nearest').fillna(0) >= min_tracks
-    y_s_masked = np.where(mask, y_s, np.nan)  # NaN for frames with too few tracks
+    # Convert LOWESS results into DataFrames (you already did this)
+    df_lowess_mean = pd.DataFrame(
+        lowess_mean,
+        columns=["frame", "lowess_mean_track_velocity"]
+    )
 
-    # 9) Put into a DataFrame
-    df_lowess = pd.DataFrame({
-        "center_frame": x_s,
-        "smoothed_mean_velocity": y_s_masked
-    })
-    # Optional: inspect the first few rows
-    df_lowess = df_lowess.drop_duplicates(subset="center_frame", keep="first")
+    df_lowess_median = pd.DataFrame(
+        lowess_median,
+        columns=["frame", "lowess_median_track_velocity"]
+    )
+
+    # Merge both curves into a single DataFrame, aligned by frame
+    df_lowess = (
+        df_lowess_mean
+        .merge(df_lowess_median, on="frame", how="outer")
+        .drop_duplicates("frame", keep= "first")
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
 
 
-    return result, df_lowess
 
+    return df_per_track_statistic, df_lowess

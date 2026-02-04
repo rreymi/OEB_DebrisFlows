@@ -71,7 +71,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
             output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time, fig_size=fig_size)
 
         # Plot number of lost tracks
-        # todo?
+        #
 
 
         # Plot
@@ -110,9 +110,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
 
 
 
-def plot_grainsize(df_per_track_grainsize: pd.DataFrame,
-             df_grainsize_lowess: pd.DataFrame,
-             ) -> None:
+def plot_grainsize() -> None:
 
     # Config Details
     event = config.EVENT
@@ -129,20 +127,26 @@ def plot_grainsize(df_per_track_grainsize: pd.DataFrame,
     df_time = pd.read_parquet(output_dir / f"df_time_{event}.parquet")
     df_piv_mova = pd.read_parquet(output_dir / f"df_piv_mova_{event}.parquet")
 
+    df_per_track_grainsize = pd.read_parquet(output_dir / f"df_per_track_grainsize_{event}.parquet")
+    df_grainsize_lowess = pd.read_parquet(output_dir / f"df_grainsize_lowess_{event}.parquet")
+
+    df_per_track_velocities = pd.read_parquet(output_dir / f"df_per_track_velocities_{event}.parquet")
+    df_velocities_lowess = pd.read_parquet(output_dir / f"df_velocities_lowess_{event}.parquet")
+
+
     # meh
+    '''
     plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_piv_mova,
                                 event=event, start_frame=start_frame, end_frame=end_frame,
                                 df_time=df_time, fig_size=fig_size, output_dir=output_dir,
                                 ylim_grainsize=ylim_grainsize)
-
-
+    print("--- Lowess Track Grain size plotted --- \n")
+    '''
     # BUBBLE plot
-    df_per_track_velocities = pd.read_parquet(output_dir / f"df_per_track_velocities_{event}.parquet")
-    df_velocities_lowess = pd.read_parquet(output_dir / f"df_velocities_lowess_{event}.parquet")
-
     plot_track_grainsize_bubble(df_per_track_grainsize,
                                 df_per_track_velocities, df_velocities_lowess,
                                 event=event, start_frame=start_frame, end_frame=end_frame,
                                 df_time=df_time, output_dir=output_dir,
                                 ylim_velocity=ylim_velocity)
+    print("--- Bubble Track Grain size plotted --- \n")
 

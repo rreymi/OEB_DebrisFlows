@@ -332,7 +332,7 @@ def plot_track_velocities_lowess(
     ax.plot(
         df_piv_mova['frame'],
         df_piv_mova['piv_vel_smoothed'],
-        label="PIV Surface Velocity smoothed",
+        label="PIV surface velocity smoothed",
         color='tab:red',
         linewidth=1.3,
         alpha=0.85,
@@ -587,7 +587,7 @@ def plot_track_grainsize_bubble(
 
     # Compute 97th percentile
     vmin = g.min()
-    vmax = np.percentile(g, 97)  # 95th percentile
+    vmax = np.percentile(g, 98)  # 95th percentile
 
     sc = ax.scatter(
         x,
@@ -595,9 +595,9 @@ def plot_track_grainsize_bubble(
         s=sizes,  # confidence
         c=g_norm,  # g_norm#g_log,           # grain size
         cmap="rainbow",
-        alpha=0.95,
+        alpha=0.90,
         edgecolors="none",
-        label=f"Median Track Velocity (binned over {frame_bin} frames)",
+        label=f"Median track velocity (binned over {frame_bin} frames)",
         vmin=vmin,
         vmax=vmax,
     )
@@ -607,7 +607,7 @@ def plot_track_grainsize_bubble(
         df_velocities_lowess["lowess_mean_track_velocity"],
         c="tab:grey",
         label="Smoothed track velocities (LOWESS)",
-        alpha=0.85
+        alpha=0.80
     )
 
     # --- Log ticks, normal numbers ---

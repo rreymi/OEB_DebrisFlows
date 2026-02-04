@@ -4,7 +4,7 @@ from utils.data_utils import compute_track_grainsize
 
 import config
 
-def calculate_gsd() -> tuple[pd.DataFrame, pd.DataFrame]:
+def calculate_gsd() -> None:
 
     event = config.EVENT
     output_dir = config.OUTPUT_DIR
@@ -29,5 +29,5 @@ def calculate_gsd() -> tuple[pd.DataFrame, pd.DataFrame]:
     )
     print(f"\nGrain Size calculation per TRACK complete for event {event}.")
 
-    return df_per_track_grainsize, df_grainsize_lowess
+    return
 

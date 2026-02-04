@@ -26,18 +26,19 @@ config.END_FRANE = 72500
 # Run options
 # ------------------------------
 Run_Filter = False
-Run_Calculations = True
-Run_Visualization = True
-Run_GSD = True
+Run_Calculations = False
+Run_Visualization = False
+Run_GrainSize = True
 
 # Calculation ---
 run_calc_per_frame = True
 run_calc_per_track = True
+run_calc_GSD = False
 
 # Plotting ---
 plot_stats_per_frame = True
 plot_stats_per_track = True
-plot_xy_mov_for_frame_sequence = True
+plot_xy_mov_for_frame_sequence = False
 
 
 def main():
@@ -52,9 +53,11 @@ def main():
     if Run_Visualization:
         plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame_sequence)
 
-    if Run_GSD:
-        df_per_track_grainsize, df_grainsize_lowess = calculate_gsd()
-        plot_grainsize(df_per_track_grainsize, df_grainsize_lowess)
+    if Run_GrainSize:
+        if run_calc_GSD:
+            calculate_gsd()
+
+        plot_grainsize()
 
 if __name__ == "__main__":
     main()

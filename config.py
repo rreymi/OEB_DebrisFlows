@@ -10,6 +10,9 @@ EVENT_DAY = "14"
 
 EVENT = f"{EVENT_YEAR}_{EVENT_MONTH}_{EVENT_DAY}"
 
+START_FRAME = 0
+END_FRANE = 0
+
 # --------------------------------------------
 # --- Output paths
 # --------------------------------------------
@@ -24,9 +27,11 @@ MIN_TRACK_LENGTH = 5
 MAX_TRACK_LENGTH = 300
 
 MAX_STD_TRACK_VEL = 1.5
+
 MIN_MEDIAN_TRACK_VEL = 0.1
 
 JUMP_THRESHOLD = 1
+
 YAXIS_MIN_LENGTH = 0.4
 
 # --------------------------------------------
@@ -41,7 +46,7 @@ MIN_NUM_DETECTIONS = 2
 # --- Calculation parameters per TRACK
 # --------------------------------------------
 LOWESS_ITERATIONS = 1
-LOWESS_FRAME_WINDOW_SIZE = 40
+LOWESS_FRAME_WINDOW_SIZE = 30
 
 
 # --------------------------------------------

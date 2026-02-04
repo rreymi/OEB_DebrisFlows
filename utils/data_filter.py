@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 
+# Function for Filter step 1
 def filter_tracks(
     df: pd.DataFrame,
     min_track_length: int,
@@ -47,9 +48,7 @@ def filter_tracks(
     return df_filtered
 
 
-
-
-
+# Function for Filter step 2
 def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
                             return_bad: bool = False, verbose: bool = True):
     """
@@ -110,11 +109,11 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
     return df_good
 
 
-
-
+# Function for Filter step 3
 def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
                               track_column: str = 'track',
-                              value_column: str = 'bb_center_lidar_y') -> pd.DataFrame:
+                              value_column: str = 'bb_center_lidar_y'
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Filter tracks based on start vs end displacement (ignoring outliers).
 
@@ -130,6 +129,7 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
         pd.DataFrame: Filtered dataframe with moving tracks only.
     """
     moving_tracks = []
+    yaxis_movements = []
 
     for track_id, track_df in df.groupby(track_column):
         track_df = track_df.sort_values('frame')  # ensure correct order
@@ -153,8 +153,16 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
 
         if y_end - y_start < -yaxis_min_length:
             moving_tracks.append(track_id)
+            # save per-track movement
+            yaxis_mov = abs(y_end - y_start)
+            yaxis_movements.append({
+                track_column: track_id,
+                "yaxis_movement": yaxis_mov,
+            })
 
     filtered_df = df[df[track_column].isin(moving_tracks)]
+
+    df_yaxis_movement = pd.DataFrame(yaxis_movements)
 
     # Stats
     total_tracks = df[track_column].nunique()
@@ -166,9 +174,9 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
     print(f"Tracks removed: {removed_tracks}")
     print("-------------------------")
 
-    return filtered_df
+    return filtered_df, df_yaxis_movement
 
-
+# Function for Filter step 4
 def filter_rows_nonzero_velocity(
     df: pd.DataFrame,
     verbose: bool = True
@@ -195,22 +203,17 @@ def filter_rows_nonzero_velocity(
     return df.loc[mask].reset_index(drop=True)
 
 
-
-def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -> pd.DataFrame:
+def replace_zero_velocity_with_nan(
+    df: pd.DataFrame
+) -> pd.DataFrame:
     """
-    Set frame statistics to zero if the number of unique tracks
-    is below the minimum threshold.
+    Replace zero velocities with NaN while keeping all rows.
     """
+    mask = df["velocity"] == 0
+    n_replaced = int(mask.sum())
 
-    cols_to_zero = [
-        "mean_vel_ma",
-        "mean_grain_ma",
-        'mean_velocity_per_frame',
-        'mean_grainsize_per_frame'
-    ]
+    df.loc[mask, "velocity"] = np.nan
 
-    mask = df["unique_tracks_per_frame"] <= min_num_detections
-
-    df.loc[mask, cols_to_zero] = np.nan
+    print(f"Replaced {n_replaced} zero velocities with NaN")
 
     return df

@@ -1,21 +1,17 @@
+import config
 import pandas as pd
 
-import config
 
-from utils.data_filter import (
+from utils.data_utils import (
+    compute_mean_median_per_frame,
+    compute_track_velocities,
+    prepare_df_for_plot,
+    load_piv_data,
+    merge_piv_and_tracking,
     clean_frames_low_detections
 )
 
-from utils.data_utils import (
-    compute_mean_median_per_frame, compute_track_velocities
-)
-
-from utils.plot_utils import (
-    prepare_df_for_plot
-)
-
-
-def calculate_stats(run_calc_per_frame = True, run_calc_per_track = True):
+def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True):
 
     event = config.EVENT
     output_dir = config.OUTPUT_DIR
@@ -50,7 +46,12 @@ def calculate_stats(run_calc_per_frame = True, run_calc_per_track = True):
 
         # Save moving-average CSV
         df_mova.to_csv(output_dir / f"df_mova_{event}.csv", index=False)
+        df_mova.to_parquet(output_dir / f"df_mova_{event}.parquet")
 
+        # Load and Save PIV Velocities
+        df_piv = load_piv_data(event=event)
+        df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)
+        df_piv_mova.to_parquet(output_dir / f"df_piv_mova_{event}.parquet")
         print(f"\nStatistics calculation per FRAME complete for event {event}.")
 
 
@@ -58,22 +59,19 @@ def calculate_stats(run_calc_per_frame = True, run_calc_per_track = True):
         # -------------------------------------------------------------------------
         # Compute Statistics Per Track
         # -------------------------------------------------------------------------
-        df_per_track_statistic, df_lowess = compute_track_velocities(
+        df_per_track_velocities, df_velocities_lowess = compute_track_velocities(
             df_clean,
             lowess_frame_window=config.LOWESS_FRAME_WINDOW_SIZE,
             lowess_iterations=config.LOWESS_ITERATIONS
         )
 
         # Save track-based statistics
-        df_per_track_statistic.to_parquet(
-            output_dir / f"df_per_track_statistic_{event}.parquet"
+        df_per_track_velocities.to_parquet(
+            output_dir / f"df_per_track_velocities_{event}.parquet"
         )
-        df_lowess.to_parquet(
-            output_dir / f"df_lowess_{event}.parquet"
+        df_velocities_lowess.to_parquet(
+            output_dir / f"df_velocities_lowess_{event}.parquet"
         )
         print(f"\nStatistics calculation per TRACK complete for event {event}.")
 
 
-
-if __name__ == "__main__":
-    calculate_stats()

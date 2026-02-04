@@ -1,12 +1,10 @@
 # data_utils.py
-from typing import Any
 
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from typing import Tuple
-from pandas import DataFrame
 
 
 def extract_frame_time_table(
@@ -48,6 +46,72 @@ def compute_mean_median_per_frame(
 
     return df
 
+def prepare_df_for_plot(
+    df: pd.DataFrame,
+    window_size: int = 9,
+    gap_threshold: int = 100
+) -> pd.DataFrame:
+    """
+    Prepare the dataframe for plotting:
+    - Remove duplicate frames
+    - Sort by frame
+    - Break time series over large frame gaps using NaNs
+    - Compute rolling moving averages
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe with per-frame statistics
+    window_size : int
+        Window size for moving average
+    gap_threshold : int
+        Max allowed frame gap before inserting NaNs
+    """
+
+    # --- Drop duplicates & sort ---
+    df_event = (
+        df.drop_duplicates(subset="frame", keep="first")
+          .sort_values(by="frame")
+          .reset_index(drop=True)
+    )
+
+    # --- Detect frame gaps ---
+    frame_diff = df_event["frame"].diff()
+
+    gap_mask = frame_diff > gap_threshold
+
+    # --- Columns affected by gaps (all per-frame stats) ---
+    gap_cols = [
+        "mean_velocity_per_frame",
+        "median_velocity_per_frame",
+        "mean_grainsize_per_frame",
+        "median_grainsize_per_frame",
+        ]
+
+    present_gap_cols = [c for c in gap_cols if c in df_event.columns]
+
+    # --- Insert NaN AFTER a large gap ---
+    df_event.loc[gap_mask, present_gap_cols] = np.nan
+
+    # --- Rolling columns mapping ---
+    rolling_cols = {
+        "mean_velocity_per_frame": "mean_vel_ma",
+        "median_velocity_per_frame": "median_vel_ma",
+        "mean_grainsize_per_frame": "mean_grain_ma",
+        "median_grainsize_per_frame": "median_grain_ma",
+        "unique_tracks_per_frame": "tracks_ma",
+    }
+
+    # --- Compute moving averages ---
+    for col, ma_col in rolling_cols.items():
+        if col in df_event.columns:
+            df_event[ma_col] = (
+                df_event[col]
+                .rolling(window=window_size, center=True)
+                .mean()
+            )
+
+    return df_event
 
 
 def load_and_merge_event_data(event: str, base_dir: str = "input_data") -> pd.DataFrame:
@@ -98,6 +162,24 @@ def summarize_df(df):
     print('End ID:', max_id)
 
 
+def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -> pd.DataFrame:
+    """
+    Set frame statistics to zero if the number of unique tracks
+    is below the minimum threshold.
+    """
+
+    cols_to_zero = [
+        "mean_vel_ma",
+        "mean_grain_ma",
+        'mean_velocity_per_frame',
+        'mean_grainsize_per_frame'
+    ]
+
+    mask = df["unique_tracks_per_frame"] <= min_num_detections
+
+    df.loc[mask, cols_to_zero] = np.nan
+
+    return df
 
 def load_piv_data(event: str) -> pd.DataFrame:
     """
@@ -185,7 +267,6 @@ def compute_track_velocities(
     columns: list | None = None,
     lowess_frame_window: int = 20,
     lowess_iterations: int = 0,
-    min_tracks: int = 5,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     if columns is None:
@@ -197,13 +278,11 @@ def compute_track_velocities(
 
     # Compute one representative frame and summary statistics per track
     # 2) Per-track statistics
-    track_stats = (
+    track_velocities = (
         df.groupby("track")
         .agg(
             mean_track_velocity=("velocity", "mean"),
-            median_track_velocity=("velocity", "median"),
-            mean_track_grainsize=("grainsize", "mean"),
-            median_track_grainsize=("grainsize", "median"),
+            median_track_velocity=("velocity", "median")
         )
     )
 
@@ -223,54 +302,28 @@ def compute_track_velocities(
     # Take all per-track statistics, attach the representative frame of each track,
     # turn the index into a column, and order tracks in time
 
-    df_per_track_statistic = (
-        track_stats
+    df_per_track_velocities = (
+        track_velocities
         .join(center_frame)
         .reset_index()
         .sort_values("center_frame")
     )
-
-    '''
-    # 5) Aggregate by center frame + rolling mean/median
-    df_frame_stats = (
-        df_track_velocities
-        .groupby("center_frame")["mean_track_velocity"]
-        .agg(
-            mean_velocity="mean",
-            median_velocity="median",
-        )
-        .reset_index()
-        .sort_values("center_frame")
-        .assign(
-            mean_velocity_roll=lambda d: (
-                d["mean_velocity"]
-                .rolling(rolling_window, center=True, min_periods=1)
-                .mean()
-            ),
-            median_velocity_roll=lambda d: (
-                d["median_velocity"]
-                .rolling(rolling_window, center=True, min_periods=1)
-                .mean()
-            ),
-        )
-    )
-    '''
 
     # 5) LOWESS smoothing
     n_frames = df["frame"].nunique()
     frac = lowess_frame_window / n_frames
 
     lowess_mean = lowess(
-        endog=df_per_track_statistic["mean_track_velocity"],
-        exog=df_per_track_statistic["center_frame"],
+        endog=df_per_track_velocities["mean_track_velocity"],
+        exog=df_per_track_velocities["center_frame"],
         frac=frac,
         it=lowess_iterations,
         return_sorted=True
     )
 
     lowess_median = lowess(
-        endog=df_per_track_statistic["median_track_velocity"],
-        exog=df_per_track_statistic["center_frame"],
+        endog=df_per_track_velocities["median_track_velocity"],
+        exog=df_per_track_velocities["center_frame"],
         frac=frac,
         it=lowess_iterations,
         return_sorted=True
@@ -288,7 +341,7 @@ def compute_track_velocities(
     )
 
     # Merge both curves into a single DataFrame, aligned by frame
-    df_lowess = (
+    df_velocities_lowess = (
         df_lowess_mean
         .merge(df_lowess_median, on="frame", how="outer")
         .drop_duplicates("frame", keep= "first")
@@ -296,6 +349,101 @@ def compute_track_velocities(
         .reset_index(drop=True)
     )
 
+    return df_per_track_velocities, df_velocities_lowess
 
 
-    return df_per_track_statistic, df_lowess
+def compute_track_grainsize(
+    df_filtered: pd.DataFrame,
+    lowess_frame_window: int = 20,
+    lowess_iterations: int = 0,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+
+    if df_filtered.empty:
+        raise ValueError(
+            "compute_track_grainsize(): df_clean is empty — "
+            "cannot compute grain-size statistics."
+        )
+
+    cols = ['frame', 'track', 'velocity', 'grainsize', 'bb_width', "bb_center_lidar_x", "bb_center_lidar_y",
+            "bb_center_lidar_z", 'time']
+
+    # Reduce size by keeping only essential columns
+    df = df_filtered[cols]
+
+    df = df.sort_values(["track", "frame"])
+
+    # Calculate step distance between track appearance
+    dxyz = (
+        df.groupby("track")[["bb_center_lidar_x", "bb_center_lidar_y", "bb_center_lidar_z"]]
+        .diff()
+    )
+
+    df["step_distance"] = np.sqrt(
+        dxyz["bb_center_lidar_x"] ** 2
+        + dxyz["bb_center_lidar_y"] ** 2
+        + dxyz["bb_center_lidar_z"] ** 2
+    ).fillna(0)
+
+    # Calculate statistic per TRACK
+    track_stats = (
+        df.groupby("track")
+        .agg(
+            # grain size
+            mean_track_grainsize=("grainsize", "mean"),
+            median_track_grainsize=("grainsize", "median"),
+
+            # geometry
+            mean_track_bb_width=("bb_width", "mean"),
+
+            # NEW: track length (frames)
+            track_length_frames=("frame", "count"),
+
+            # NEW: track duration
+            track_duration=("time", lambda x: x.max() - x.min()),
+
+            # NEW: distance traveled
+            track_distance=("step_distance", "sum"),
+        )
+    )
+
+    # 3) Center frame per track
+    idx = df.groupby("track").cumcount()
+    sizes = df.groupby("track")["frame"].transform("size")
+    center_mask = idx == (sizes // 2)
+
+    center_frame = (
+        df.loc[center_mask, ["track", "frame"]]
+        .set_index("track")["frame"]
+        .rename("center_frame")
+    )
+
+    # 4) Combine - trackID with center frame + all stats
+    # Take all per-track statistics, attach the representative frame of each track,
+    # turn the index into a column, and order tracks in time
+
+    df_per_track_grainsize = (
+        track_stats
+        .join(center_frame)
+        .reset_index()
+        .sort_values("center_frame")
+    )
+
+    # 5) LOWESS smoothing
+    n_frames = df["frame"].nunique()
+    frac = lowess_frame_window / n_frames
+
+    grainsize_lowess_mean = lowess(
+        endog=df_per_track_grainsize["mean_track_grainsize"],
+        exog=df_per_track_grainsize["center_frame"],
+        frac=frac,
+        it=lowess_iterations,
+        return_sorted=True
+    )
+
+    # Convert LOWESS results into DataFrames (you already did this)
+    df_grainsize_lowess = pd.DataFrame(
+        grainsize_lowess_mean,
+        columns=["frame", "lowess_mean_track_grainsize"]
+    )
+
+    return df_per_track_grainsize, df_grainsize_lowess

@@ -20,12 +20,12 @@ from OEB_GSD import calculate_gsd
 # ------------------------------
 import config
 config.START_FRAME = 50000
-config.END_FRANE = 70000
+config.END_FRANE = 72500
 
 # ------------------------------
 # Run options
 # ------------------------------
-Run_Filter = True
+Run_Filter = False
 Run_Calculations = True
 Run_Visualization = True
 Run_GSD = True

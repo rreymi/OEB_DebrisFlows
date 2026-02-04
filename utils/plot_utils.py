@@ -1,6 +1,7 @@
 # plot_utils.py
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from pathlib import Path
@@ -497,4 +498,139 @@ def plot_xy_mov_tracks(df: pd.DataFrame,
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
     return output_path
+
+
+# --- bubble plot ---
+
+def plot_track_grainsize_bubble(
+    df_per_track_grainsize: pd.DataFrame,
+    df_per_track_velocities: pd.DataFrame,
+    df_velocities_lowess: pd.DataFrame,
+    event: str,
+    start_frame: int,
+    end_frame: int,
+    df_time: pd.DataFrame,
+    output_dir: Path | None = None,
+    ylim_velocity: tuple[float, float] | None = None,
+) -> None:
+
+    frame_bin = 10  # BIN WIDTH (frames)
+
+    fig, ax = plt.subplots(figsize=(16, 7))
+
+
+    # ------------------------------------------------------------------
+    # Filter time window
+    # ------------------------------------------------------------------
+    df_v = df_per_track_velocities[
+        df_per_track_velocities["center_frame"].between(start_frame, end_frame)
+    ].copy()
+
+    df_g = df_per_track_grainsize[
+        df_per_track_grainsize["center_frame"].between(start_frame, end_frame)
+    ].copy()
+
+    # ------------------------------------------------------------------
+    # Add frame bins
+    # ------------------------------------------------------------------
+    df_v["frame_bin"] = (df_v["center_frame"] // frame_bin) * frame_bin
+    df_g["frame_bin"] = (df_g["center_frame"] // frame_bin) * frame_bin
+
+    # ------------------------------------------------------------------
+    # Aggregate per bin
+    # ------------------------------------------------------------------
+    df_v_bin = (
+        df_v.groupby("frame_bin")
+        .agg(mean_track_velocity=("mean_track_velocity", "median"))
+        .reset_index()
+    )
+
+    df_g_bin = (
+        df_g.groupby("frame_bin")
+        .agg(
+            mean_track_grainsize=("mean_track_grainsize", "mean"),
+            n_tracks=("mean_track_grainsize", "size")
+        )
+        .reset_index()
+    )
+
+    # ------------------------------------------------------------------
+    # Merge velocity + grain size
+    # ------------------------------------------------------------------
+    df_bin = pd.merge(
+        df_v_bin,
+        df_g_bin,
+        on="frame_bin",
+        how="inner"
+    )
+
+    # ------------------------------------------------------------------
+    # Data for plotting
+    # ------------------------------------------------------------------
+    x = df_bin["frame_bin"]
+    y = df_bin["mean_track_velocity"]
+    g = df_bin["mean_track_grainsize"]
+
+    # ------------------------------------------------------------------
+    # Log-scaled marker sizes
+    # ------------------------------------------------------------------
+    n = df_bin["n_tracks"]
+
+    n_log = np.log10(n)
+    n_norm = (n_log - n_log.min()) / (n_log.max() - n_log.min())
+
+    sizes = 15 + n_norm * 120
+
+    g = df_bin["mean_track_grainsize"]
+    g_log = np.log10(g + 1e-6)
+    g_norm = (g - g.min()) / (g.max() - g.min())
+
+    # Compute 97th percentile
+    vmin = g.min()
+    vmax = np.percentile(g, 97)  # 95th percentile
+
+    sc = ax.scatter(
+        x,
+        y,
+        s=sizes,  # confidence
+        c=g_norm,  # g_norm#g_log,           # grain size
+        cmap="rainbow",
+        alpha=0.95,
+        edgecolors="none",
+        label=f"Median Track Velocity (binned over {frame_bin} frames)",
+        vmin=vmin,
+        vmax=vmax,
+    )
+
+    ax.plot(
+        df_velocities_lowess["frame"],
+        df_velocities_lowess["lowess_mean_track_velocity"],
+        c="tab:grey",
+        label="Smoothed track velocities (LOWESS)",
+        alpha=0.85
+    )
+
+    # --- Log ticks, normal numbers ---
+    cbar = plt.colorbar(sc, ax=ax)
+    cbar.set_label("Grain Size (m)", fontsize=14)
+    cbar.ax.tick_params(labelsize=12, width=1.2, length=6)
+
+    style_main_axis(ax,
+                    xlabel="Frame Number",
+                    xlim=(start_frame, end_frame),
+                    ylabel= "Velocity (m/s)",
+                    ylim= ylim_velocity,
+                    fontsize= 14)
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time)
+
+    # --- Legend
+    add_standard_legend(ax)
+
+    # save
+    fig.tight_layout()
+    fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
 

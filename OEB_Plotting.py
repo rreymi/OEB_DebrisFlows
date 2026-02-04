@@ -7,6 +7,7 @@ from utils.plot_utils import (
     plot_track_velocities_lowess,
     plot_track_grainsize_lowess,
     plot_xy_mov_tracks,
+    plot_track_grainsize_bubble
 )
 
 def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame_sequence) -> None:
@@ -120,6 +121,7 @@ def plot_grainsize(df_per_track_grainsize: pd.DataFrame,
     output_dir = config.OUTPUT_DIR
     fig_size = config.FIG_SIZE
     ylim_grainsize = config.YLIM_GRAINSIZE
+    ylim_velocity = config.YLIM_VELOCITY
 
     # -------------------------------------------------------------------------
     # Load DataFrames - general
@@ -127,8 +129,20 @@ def plot_grainsize(df_per_track_grainsize: pd.DataFrame,
     df_time = pd.read_parquet(output_dir / f"df_time_{event}.parquet")
     df_piv_mova = pd.read_parquet(output_dir / f"df_piv_mova_{event}.parquet")
 
+    # meh
     plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_piv_mova,
                                 event=event, start_frame=start_frame, end_frame=end_frame,
                                 df_time=df_time, fig_size=fig_size, output_dir=output_dir,
                                 ylim_grainsize=ylim_grainsize)
+
+
+    # BUBBLE plot
+    df_per_track_velocities = pd.read_parquet(output_dir / f"df_per_track_velocities_{event}.parquet")
+    df_velocities_lowess = pd.read_parquet(output_dir / f"df_velocities_lowess_{event}.parquet")
+
+    plot_track_grainsize_bubble(df_per_track_grainsize,
+                                df_per_track_velocities, df_velocities_lowess,
+                                event=event, start_frame=start_frame, end_frame=end_frame,
+                                df_time=df_time, output_dir=output_dir,
+                                ylim_velocity=ylim_velocity)
 

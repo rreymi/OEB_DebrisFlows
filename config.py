@@ -11,7 +11,7 @@ EVENT_DAY = "14"
 EVENT = f"{EVENT_YEAR}_{EVENT_MONTH}_{EVENT_DAY}"
 
 START_FRAME = 0
-END_FRANE = 0
+END_FRAME = 0
 
 # --------------------------------------------
 # --- Output paths
@@ -46,8 +46,9 @@ MIN_NUM_DETECTIONS = 2
 # --- Calculation parameters per TRACK
 # --------------------------------------------
 LOWESS_ITERATIONS = 1
-LOWESS_FRAME_WINDOW_SIZE = 30
-
+LOWESS_FRAME_WINDOW_SIZE = 20
+LOWESS_GAP_THRESHOLD = 150
+LOWESS_SEGMENT_LENGTH = 20
 
 # --------------------------------------------
 # --- Plot Parameters
@@ -65,3 +66,8 @@ YLIM_GRAINSIZE = (0, 1)
 # PER TRACK
 
 STATISTIC_TYPE = "mean" # or "median"
+
+# Cross-section plots
+
+Y_AXIS_START= 4
+Y_AXIS_END = -4

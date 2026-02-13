@@ -7,146 +7,116 @@ from utils.plot_utils import (
     plot_track_velocities_lowess,
     plot_track_grainsize_lowess,
     plot_xy_mov_tracks,
-    plot_track_grainsize_bubble
+    plot_xy_mov_tracks_color_vel,
+    plot_track_grainsize_bubble,
+    plot_cross_section_velocity,
+
 )
 
 def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame_sequence) -> None:
 
-    # Config Details
-    event = config.EVENT
-    start_frame = config.START_FRAME
-    end_frame = config.END_FRANE
-    output_dir = config.OUTPUT_DIR
-    fig_size = config.FIG_SIZE
-    ylim_velocity = config.YLIM_VELOCITY
-    ylim_grainsize = config.YLIM_GRAINSIZE
+    # --- Load DataFrames
+    df_time = pd.read_parquet(config.OUTPUT_DIR/ f"df_time_{config.EVENT}.parquet")
+    df_mova = pd.read_parquet(config.OUTPUT_DIR/ f"df_mova_{config.EVENT}.parquet")
+    df_piv_mova = pd.read_parquet(config.OUTPUT_DIR/ f"df_piv_mova_{config.EVENT}.parquet")
 
-
-    # -------------------------------------------------------------------------
-    # Load DataFrames - general
-    # -------------------------------------------------------------------------
-    df_time = pd.read_parquet(output_dir / f"df_time_{event}.parquet")
-    df_mova = pd.read_parquet(output_dir / f"df_mova_{event}.parquet")
-    df_piv_mova = pd.read_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-
-
-
-    if  plot_stats_per_frame:
-        # -------------------------------------------------------------------------
-        # Per Frame Plots
-        # -------------------------------------------------------------------------
+    if  plot_stats_per_frame:       # Per Frame Plots
 
         #  --- MEAN Plots
         #  Plot velocity
         plot_variable_against_frame(
-            df_mova=df_mova,
+            df_mova=df_mova, config= config,
             plot_variable="velocity",
             statistic="mean",
             color_ma="Steelblue",
             label_name='velocity',
             y_label='Velocity (m/s)',
-            y_lim=ylim_velocity, output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time,
-            fig_size=fig_size)
+            df_time=df_time,
+            y_lim=config.YLIM_VELOCITY,
+        )
 
         # Plot grainsize
         plot_variable_against_frame(
-            df_mova=df_mova,
+            df_mova=df_mova, config= config,
             plot_variable="grainsize",
             statistic="mean",
             color_ma="darkorange",
             label_name='grain size',
             y_label='Grain Size (m)',
-            y_lim=ylim_grainsize, output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time,
-            fig_size=fig_size)
+            df_time=df_time,
+            y_lim=config.YLIM_VELOCITY,
+        )
 
         # Plot tracks
         plot_variable_against_frame(
-            df_mova=df_mova,
+            df_mova=df_mova, config= config,
             plot_variable="tracks",
             statistic="mean",  # statistic is ignored for tracks
             color_ma="red",
             label_name='number of detections',
             y_label='Number of Detections',
             y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
-            output_dir=output_dir, start_frame=start_frame, end_frame=end_frame, df_time=df_time, fig_size=fig_size)
-
-        # Plot number of lost tracks
-        #
-
+        )
 
         # Plot
-        plot_piv_and_mean_velocity_per_frame(df_piv_mova, df_mova, df_time, event=event, start_frame=start_frame,
-                                       end_frame=end_frame, output_dir=output_dir, fig_size=fig_size,
-                                       ylim_velocity=ylim_velocity)
+        plot_piv_and_mean_velocity_per_frame(df_piv_mova, df_mova, df_time, config)
 
 
 
 
         print("--- Per FRAME plots done --- \n")
 
-    if  plot_stats_per_track:
-        # -------------------------------------------------------------------------
-        # Per Track Plots
-        # -------------------------------------------------------------------------
 
-        # Load DFs
-        df_per_track_velocities = pd.read_parquet(output_dir / f"df_per_track_velocities_{event}.parquet")
-        df_velocities_lowess = pd.read_parquet(output_dir / f"df_velocities_lowess_{event}.parquet")
+    if  plot_stats_per_track:       # ---  Per Track Plots
 
-        plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, stat_type=config.STATISTIC_TYPE,
-                                     event=event, start_frame=start_frame, end_frame=end_frame,
-                                     df_time=df_time, fig_size=fig_size, output_dir=output_dir,
-                                     ylim_velocity=ylim_velocity)
-        print("--- Per TRACK plots done --- \n")
+        # --- Load DataFrames
+        df_per_track_velocities = pd.read_parquet(config.OUTPUT_DIR/ f"df_per_track_velocities_{config.EVENT}.parquet")
+        df_velocities_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_velocities_lowess_{config.EVENT}.parquet")
+
+        # --- Plot Track Velocities
+        plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, df_time, config)
+
+        print("--- LOWESS Track Velocity plotted --- \n")
 
 
     if plot_xy_mov_for_frame_sequence:
-        df_clean = pd.read_parquet(output_dir / f"df_clean_{event}.parquet")
-        df_clean_sequence = df_clean[df_clean['frame'].between(start_frame,end_frame)]
+        df_clean = pd.read_parquet(config.OUTPUT_DIR/ f"df_clean_{config.EVENT}.parquet")
+        df_clean_sequence = df_clean[df_clean['frame'].between(config.START_FRAME,config.END_FRAME)]
 
-        plot_xy_mov_tracks(df_clean_sequence, title=f'xy_track_path_mov_{event}_{start_frame}_{end_frame}',
-                           output_dir=output_dir)
+        # Track path raw
+        plot_xy_mov_tracks(df_clean_sequence, config)
+
+        # Colored by velocity
+        plot_xy_mov_tracks_color_vel(df_clean_sequence, config)
         print("--- xy Plot of sequence done --- \n")
 
 
 
 def plot_grainsize() -> None:
 
-    # Config Details
-    event = config.EVENT
-    start_frame = config.START_FRAME
-    end_frame = config.END_FRANE
-    output_dir = config.OUTPUT_DIR
-    fig_size = config.FIG_SIZE
-    ylim_grainsize = config.YLIM_GRAINSIZE
-    ylim_velocity = config.YLIM_VELOCITY
+    # --- Load DataFrames
+    df_time = pd.read_parquet(config.OUTPUT_DIR/ f"df_time_{config.EVENT}.parquet")
+    df_per_track_grainsize = pd.read_parquet(config.OUTPUT_DIR/ f"df_per_track_grainsize_{config.EVENT}.parquet")
+    df_grainsize_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_grainsize_lowess_{config.EVENT}.parquet")
+    df_per_track_velocities = pd.read_parquet(config.OUTPUT_DIR/ f"df_per_track_velocities_{config.EVENT}.parquet")
+    df_velocities_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_velocities_lowess_{config.EVENT}.parquet")
 
-    # -------------------------------------------------------------------------
-    # Load DataFrames - general
-    # -------------------------------------------------------------------------
-    df_time = pd.read_parquet(output_dir / f"df_time_{event}.parquet")
-    df_piv_mova = pd.read_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-
-    df_per_track_grainsize = pd.read_parquet(output_dir / f"df_per_track_grainsize_{event}.parquet")
-    df_grainsize_lowess = pd.read_parquet(output_dir / f"df_grainsize_lowess_{event}.parquet")
-
-    df_per_track_velocities = pd.read_parquet(output_dir / f"df_per_track_velocities_{event}.parquet")
-    df_velocities_lowess = pd.read_parquet(output_dir / f"df_velocities_lowess_{event}.parquet")
-
-
-    # meh
-    '''
-    plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_piv_mova,
-                                event=event, start_frame=start_frame, end_frame=end_frame,
-                                df_time=df_time, fig_size=fig_size, output_dir=output_dir,
-                                ylim_grainsize=ylim_grainsize)
+    # --- GRAIN SIZE per Track
+    plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_time, config)
     print("--- Lowess Track Grain size plotted --- \n")
-    '''
-    # BUBBLE plot
-    plot_track_grainsize_bubble(df_per_track_grainsize,
-                                df_per_track_velocities, df_velocities_lowess,
-                                event=event, start_frame=start_frame, end_frame=end_frame,
-                                df_time=df_time, output_dir=output_dir,
-                                ylim_velocity=ylim_velocity)
+
+    # --- BUBBLE plot
+    plot_track_grainsize_bubble(df_per_track_grainsize, df_per_track_velocities,
+                                df_velocities_lowess, df_time, config)
     print("--- Bubble Track Grain size plotted --- \n")
 
+
+
+
+def plot_cross_section() -> None:
+
+    # --- Load DataFrames
+    df_clean = pd.read_parquet(config.OUTPUT_DIR/ f"df_clean_{config.EVENT}.parquet")
+
+    plot_cross_section_velocity(df_clean, config)
+    print("--- Velocity cross-section plotted --- \n")

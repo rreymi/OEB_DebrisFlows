@@ -2,7 +2,7 @@
 # Project:        GSD OEB
 # Script:         Main Script for Track Filtering and Data Visualization
 # Author:         Roman Renner
-# Date:           2026-01-28
+# Date:           2026-02-13
 # Description:    Script to Filter Tracks, Determine velocities and grain sizes
 #                 and visualize data in simple plots
 # =============================================================================
@@ -11,34 +11,40 @@
 # Import Libraries
 # ------------------------------
 from OEB_Filter_process import filter_process
-from OEB_Calculations import calculate_vel
-from OEB_Plotting import plot_stats, plot_grainsize
-from OEB_GSD import calculate_gsd
+from OEB_Calculations import calculate_vel, calculate_gs
+from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
+
 
 # ------------------------------
 # Configuration / Parameters # import config --> CHECK CONFIG
 # ------------------------------
 import config
-config.START_FRAME = 50000
-config.END_FRANE = 72500
+config.START_FRAME = 35000
+config.END_FRAME = 40000
 
 # ------------------------------
 # Run options
 # ------------------------------
-Run_Filter = False
-Run_Calculations = False
-Run_Visualization = False
-Run_GrainSize = True
+Run_Filter = False                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
+Run_Calculations = False                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
+Run_Plotting = True                     # Visualize data
 
-# Calculation ---
-run_calc_per_frame = True
-run_calc_per_track = True
-run_calc_GSD = False
 
-# Plotting ---
-plot_stats_per_frame = True
-plot_stats_per_track = True
-plot_xy_mov_for_frame_sequence = False
+# --- Calculations
+# Velocity
+run_calc_Vel = True
+run_calc_per_frame = False              # df_mova and df_stats (moving averages of per frame statistics)
+run_calc_per_track = True               # lowess track velocity
+# Grain SIze
+run_calc_GS = False                     # lowess track grainsize
+
+# --- Plotting ---
+plot_stats_per_frame = True             # Per Frame stats (Moving Average plots)
+plot_track_velocity = True              # Per Track stats (LOWESS Plot)
+plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
+plot_xy_mov_for_frame_sequence = True   # X - Y Track movement
+plot_cross_sec = True                   # Velocity cross-section plot
+
 
 
 def main():
@@ -48,16 +54,22 @@ def main():
         filter_process(plot_xy_movement)
 
     if Run_Calculations:
-        calculate_vel(run_calc_per_frame, run_calc_per_track)
+        if run_calc_Vel:
+            calculate_vel(run_calc_per_frame, run_calc_per_track)
+        if run_calc_GS:
+            calculate_gs()
 
-    if Run_Visualization:
-        plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame_sequence)
+    if Run_Plotting:
+        plot_stats(plot_stats_per_frame, plot_track_velocity, plot_xy_mov_for_frame_sequence)
 
-    if Run_GrainSize:
-        if run_calc_GSD:
-            calculate_gsd()
+        if plot_track_grainsize:
+            plot_grainsize()
 
-        plot_grainsize()
+        if plot_cross_sec:
+            plot_cross_section()
 
+
+
+    print('all done')
 if __name__ == "__main__":
     main()

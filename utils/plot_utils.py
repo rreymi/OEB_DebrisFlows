@@ -6,8 +6,13 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from pathlib import Path
 from matplotlib import font_manager
+from matplotlib.colors import Normalize
+from matplotlib.collections import LineCollection
+from scipy.interpolate import interp1d
+import matplotlib.cm as cm
 
-# Helper Functions for all plots
+
+# --- Helper Functions for all plots
 def style_main_axis(
     ax: plt.Axes,
     xlabel: str = 'Frame Number',
@@ -33,7 +38,7 @@ def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
 
     frame_to_time = dict(zip(df_time["frame"], df_time["time"]))
 
-    def formatter(frame, pos=None):
+    def formatter(frame):
         nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
         seconds = frame_to_time[nearest_frame]
 
@@ -49,12 +54,12 @@ def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
 def add_time_top_axis(
     ax: plt.Axes,
     df_time: pd.DataFrame | None,
-    xlabel: str = "Time [MM:SS]",
+    x_label: str = "Time [MM:SS]",
     fontsize: int = 16,
 ):
     ax_top = ax.twiny()
     ax_top.set_xlim(ax.get_xlim())
-    ax_top.set_xlabel(xlabel, fontsize=fontsize)
+    ax_top.set_xlabel(x_label, fontsize=fontsize)
 
     formatter = make_frame_to_mmss_formatter(df_time)
 
@@ -83,8 +88,13 @@ def add_standard_legend(
 
     return leg
 
+def save_plot(fig, fig_name, output_dir):
+    fig.tight_layout()
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
-# --- Plot Functions for data per FRAME ---
+
+# --- Plot Functions for data per FRAME
 
 # Helper
 def get_plot_columns(plot_variable: str, statistic: str):
@@ -111,35 +121,36 @@ def get_plot_columns(plot_variable: str, statistic: str):
 
 
 # Main Plot Function
-def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
+def plot_variable_against_frame(df_mova: pd.DataFrame, config,
+                                plot_variable, statistic,
                                 color_ma: str, label_name: str, y_label: str,
-                                y_lim: tuple[float, float] | None = None, output_dir: Path | None = None,
-                                start_frame=None, end_frame=None, fig_size: tuple[int, int] = None,
-                                df_time: pd.DataFrame | None = None) -> None:
+                                df_time: pd.DataFrame | None = None,
+                                y_lim: tuple = None,
+) -> None:
     """
     Plot a per-frame variable (velocity, grainsize, or tracks) against frame number,
     and top x-axis showing time in MM:SS.
 
     Parameters:
         df_mova (pd.DataFrame): Dataframe with per-frame stats and 'time' column
+        config
         plot_variable (str): 'velocity', 'grainsize', or 'tracks'
         statistic (str): 'mean' or 'median' (ignored for tracks)
         color_ma (str): color of Moving Average
         label_name (str): clear label name
-        y_label (str): clear y_label
-        y_lim (tuple): limits of y-axis
-        output_dir (str or Path): folder to save the figure
-        start_frame (int, optional): start frame for x-axis
-        end_frame (int, optional): end frame for x-axis
-        fig_size (tuple, optional): figure size
+        y_label (str): y_label
+        y_lim (tuple): y_lim
         df_time (pd.DataFrame, optional): DataFrame with 'frame' and 'time' columns
     """
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
 
     # Get columns for raw values and moving average
     raw_col, ma_col = get_plot_columns(plot_variable, statistic)
 
     # --- Start plotting
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
     # Raw values
     ax.plot(
@@ -174,47 +185,27 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, plot_variable, statistic,
     add_standard_legend(ax)
 
     # Save figure
-    fig.tight_layout()
     fig_name = f"{statistic.capitalize()}_{plot_variable}_per_frame_{start_frame}_{end_frame}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
 
 
 def plot_piv_and_mean_velocity_per_frame(
     df_piv_mova: pd.DataFrame,
     df_mova: pd.DataFrame,
     df_time: pd.DataFrame,
-    event: str,
-    start_frame: int,
-    end_frame: int,
-    fig_size: tuple[int, int] = None,
-    output_dir: Path | None = None,
-    ylim_velocity: tuple[float, float] | None = None,
+    config,
 ) -> None:
     """
     Plot PIV and tracking velocities with lower x-axis as frame numbers
     and top x-axis as corresponding time in MM:SS.
-
-    Parameters
-    ----------
-    df_piv_mova : pd.DataFrame
-        Must contain columns: 'mova_frame', 'time_sec', 'mova_mean_vel_per_frame', 'piv_vel_smoothed'
-    df_mova : pd.DataFrame
-    df_time : pd.DataFrame
-    event : str
-    start_frame : int
-        First frame to display
-    end_frame : int
-        Last frame to display
-    fig_size : tuple, optional
-        Figure size, by default (14,7)
-    output_dir : Path | None, optional
-    ylim_velocity: tuple[float, float] | None, optional
     """
 
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
 
     # --- Create figure and axes ---
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
     # --- Plot velocities ---
     ax.plot(df_piv_mova['frame'],
@@ -247,7 +238,7 @@ def plot_piv_and_mean_velocity_per_frame(
                     xlabel="Frame Number",
                     ylabel="Velocity (m/s)",
                     xlim=(start_frame, end_frame),
-                    ylim=ylim_velocity,
+                    ylim=config.YLIM_VELOCITY,
                     fontsize=16)
 
     # --- TOP axis (time in MM:SS)
@@ -264,30 +255,134 @@ def plot_piv_and_mean_velocity_per_frame(
         edgecolor="black")
     plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
 
-    fig.tight_layout()
-
-    fig_name = f"PIV_and_mean_Velocity_per_frame_{event}_{start_frame}_{end_frame}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    # save plot
+    fig_name = f"PIV_and_mean_Velocity_per_frame_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
 
 
 # --- Function for plotting per Track data ---
 
+# --- XY Track path movement ---
+def plot_xy_mov_tracks(df: pd.DataFrame, config,
+                    x_lim: tuple[float, float] = (-10, 6),
+                    y_lim: tuple[float, float] = (-8, 8),
+                    ):
+
+    """
+    Plot all tracks from df whose track ID is in bad_tracks.
+    """
+    # Config Values
+    output_dir = config.OUTPUT_DIR
+    title = f'xy_track_path_mov_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}'
+
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # iterate over track IDs
+    for tid, df_track in df.groupby("track"):
+        ax.plot(df_track["bb_center_lidar_x"],
+                df_track["bb_center_lidar_y"],
+                linewidth=1)
+
+    # formatting
+    ax.set_xlim(x_lim)
+    ax.set_ylim(y_lim)
+    ax.set_xlabel("X (LiDAR bbox center)")
+    ax.set_ylabel("Y (LiDAR bbox center)")
+    ax.set_aspect("equal", "box")
+    ax.grid(True, linestyle='--', alpha=0.3)
+
+    # Save figure
+    fig_name = f"{title}.jpeg"
+    output_path = Path(output_dir) / fig_name
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+
+
+
+def plot_xy_mov_tracks_color_vel(
+    df: pd.DataFrame, config,
+    x_lim=(-10, 0), y_lim=(-8, 8),
+    line_width: float = 1,
+    cmap_name: str = "viridis",
+    alpha_line: float = 0.75,
+    interp_points: int = 100
+):
+    """
+    Plot tracks as smooth continuous lines colored by velocity.
+    Small line segments are interpolated to make the line visually smooth.
+    """
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    cmap = cm.get_cmap(cmap_name)
+
+    for tid, df_track in df.groupby("track"):
+
+        df_track = df_track.iloc[::3]
+
+        x = df_track["bb_center_lidar_x"].values
+        y = df_track["bb_center_lidar_y"].values
+        v = df_track["velocity"].values
+        if len(x) < 2:
+            continue
+        # Interpolate to more points for smoothness
+        t = np.linspace(0, 1, len(x))
+        t_new = np.linspace(0, 1, interp_points)
+
+
+        x_smooth = interp1d(t, x, kind='cubic' if len(df_track) >= 5 else 'linear')(t_new) # short tracks are interpolated linear
+        y_smooth = interp1d(t, y, kind='cubic' if len(df_track) >= 5 else 'linear')(t_new)
+        v_smooth = interp1d(t, v, kind='linear')(t_new)  # velocity linear
+
+        # Create segments for gradient coloring
+        points = np.array([x_smooth, y_smooth]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+        lc = LineCollection(segments, array=v_smooth[1:], cmap=cmap,
+                            linewidth=line_width, alpha=alpha_line)
+        ax.add_collection(lc)
+
+    # Axis formatting
+    style_main_axis(ax,
+                    xlim=x_lim,
+                    ylim=y_lim,
+                    xlabel = "X (LiDAR bbox center) (m)",
+                    ylabel="Y (LiDAR bbox center) (m)",
+                    fontsize= 14)
+
+    ax.set_aspect("equal", "box")
+    ax.grid(True, linestyle="--", alpha=0.25)
+
+    # Colorbar
+    norm = plt.Normalize(vmin=0, vmax=df["velocity"].quantile(0.98))
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    cbar = fig.colorbar(sm, ax=ax, shrink=0.8)
+    cbar.set_label("Velocity [m/s]", fontsize=13)
+    cbar.ax.tick_params(labelsize=12)
+
+
+    fig_name = f'xy_track_path_mov_colored_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg'
+    save_plot(fig,fig_name,config.OUTPUT_DIR)
+
+
+# --- Per Track Velocity smoothed with LOWESS / Surges segmented
 def plot_track_velocities_lowess(
     df_per_track_statistic: pd.DataFrame,
     df_lowess: pd.DataFrame,
     df_piv_mova: pd.DataFrame,
-    stat_type: str,
-    event: str,
-    start_frame: int,
-    end_frame: int,
-    df_time: pd.DataFrame,
-    fig_size: tuple[int, int] = None,
-    output_dir: Path | None = None,
-    ylim_velocity: tuple[float, float] | None = None,
+    df_time: pd.DataFrame, config,
 ) -> None:
 
+    # Config Values
+    stat_type = config.STATISTIC_TYPE
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
 
+
+    # Choose statistic
     if stat_type == "mean":
         track_velocity = "mean_track_velocity"
         lowess_track_velocity = "lowess_mean_track_velocity"
@@ -302,7 +397,7 @@ def plot_track_velocities_lowess(
         raise ValueError("plot_type must be either 'mean' or 'median'")
 
     # --- Start plotting
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
     # Raw values
     ax.scatter(
@@ -319,16 +414,19 @@ def plot_track_velocities_lowess(
         rasterized=True  # optional but recommended
     )
 
-    ax.plot(
-        df_lowess['frame'],
-        df_lowess[lowess_track_velocity],
-        label=label_smooth,
-        color='tab:blue',
-        linewidth=2.2,
-        alpha=1.0,
-        zorder=3
-    )
+    # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
+    for i, (_, seg) in enumerate(df_lowess.groupby("segment")):
+        ax.plot(
+            seg['frame'],
+            seg[lowess_track_velocity],
+            label=label_smooth if i == 0 else None,  # label only once
+            color='tab:blue',
+            linewidth=2.2,
+            alpha=1.0,
+            zorder=3
+        )
 
+    # PIV velocity for comparison
     ax.plot(
         df_piv_mova['frame'],
         df_piv_mova['piv_vel_smoothed'],
@@ -339,12 +437,12 @@ def plot_track_velocities_lowess(
         zorder=2
     )
 
-    # X and Y Axis
+    # --- X and Y Axis
     style_main_axis(ax,
                     xlabel="Frame Number",
                     ylabel="Velocity (m/s)",
                     xlim=(start_frame, end_frame),
-                    ylim=ylim_velocity,
+                    ylim=config.YLIM_VELOCITY,
                     fontsize=16)
 
     # --- TOP axis (time in MM:SS)
@@ -354,48 +452,23 @@ def plot_track_velocities_lowess(
     add_standard_legend(ax)
 
     # --- Save
-    fig.tight_layout()
-    fig_name = f"PIV_and_{stat_type}_Track_velocities_{event}_{start_frame}_{end_frame}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    fig_name = f"PIV_and_{stat_type}_Track_velocities_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
 
 
-
+# Per Track Grainsize
 def plot_track_grainsize_lowess(
     df_per_track_grainsize: pd.DataFrame,
     df_grainsize_lowess: pd.DataFrame,
-    df_piv_mova: pd.DataFrame,
-    event: str,
-    start_frame: int,
-    end_frame: int,
-    df_time: pd.DataFrame,
-    fig_size: tuple[int, int] = None,
-    output_dir: Path | None = None,
-    ylim_grainsize: tuple[float, float] | None = None,
+    df_time: pd.DataFrame, config,
 ) -> None:
 
-
-    # --- Frame -> time mapping for top axis ---
-    frame_to_time = {}
-    if df_time is not None and not df_time.empty:
-        # assume df_time is already cleaned and sorted
-        frame_to_time = dict(zip(df_time['frame'], df_time['time']))
-
-    # --- Function to convert frame -> MM:SS ---
-    def frame_to_mmss(frame):
-        if not frame_to_time:
-            return ""
-        nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
-        seconds = frame_to_time[nearest_frame]
-        if pd.isna(seconds):
-            return ""
-        minutes = int(seconds) // 60
-        secs = int(seconds) % 60
-        return f"{minutes:02d}:{secs:02d}"
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
 
 
-    # --- Start plotting
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
     # Raw values
     ax.scatter(
@@ -422,100 +495,41 @@ def plot_track_grainsize_lowess(
         zorder=3
     )
 
-    # X and Y Axis
+    # --- X and Y Axis
     style_main_axis(ax,
                     xlabel="Frame Number",
                     ylabel="Grain Size (m)",
                     xlim=(start_frame, end_frame),
-                    ylim=ylim_grainsize,
+                    ylim=config.YLIM_GRAINSIZE,
                     fontsize=16)
 
     # --- TOP axis (time in MM:SS)
-    ax_top = ax.twiny()
-    ax_top.set_xlim(ax.get_xlim())
-    ax_top.set_xlabel("Time [MM:SS]", fontsize=16)
+    add_time_top_axis(ax, df_time)
 
-    # Set tick locations and formatting
-    ax_top.xaxis.set_major_locator(ticker.AutoLocator())
-    ax_top.xaxis.set_major_formatter(ticker.FuncFormatter(lambda val, pos: frame_to_mmss(val)))
-    ax_top.tick_params(axis='x', labelsize=15, pad=8, length=4, width=1)
+    # --- Legend
+    add_standard_legend(ax)
 
-    # Legend
-    leg = ax.legend(frameon=True, fontsize=16, loc="best", facecolor="white", edgecolor="black")
-    plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
-
-    fig.tight_layout()
-
-    fig_name = f"Track_grainsize_{event}_{start_frame}_{end_frame}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-
-
-
-# --- XY Track path movement ---
-def plot_xy_mov_tracks(df: pd.DataFrame,
-                    x_lim=(-10, 6),
-                    y_lim=(-8, 8),
-                    title = str,
-                    output_dir: Path | None = None):
-    """
-    Plot all tracks from df whose track ID is in bad_tracks.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Must contain columns ['track', 'bb_center_lidar_x', 'bb_center_lidar_y'].
-
-    x_lim : tuple, optional
-        X-axis limits.
-    y_lim : tuple, optional
-        Y-axis limits.
-    title : str,
-
-    output_dir : Path | None, optional
-    """
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    # iterate over track IDs
-    for tid, df_track in df.groupby("track"):
-        ax.plot(df_track["bb_center_lidar_x"],
-                df_track["bb_center_lidar_y"],
-                linewidth=1)
-
-    # formatting
-    ax.set_xlim(x_lim)
-    ax.set_ylim(y_lim)
-    ax.set_xlabel("X (LiDAR bbox center)")
-    ax.set_ylabel("Y (LiDAR bbox center)")
-    ax.set_aspect("equal", "box")
-    ax.grid(True, linestyle='--', alpha=0.3)
-
-    # Save figure
-    fig_name = f"{title}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-    return output_path
+    # --- Save
+    fig_name = f"Track_grainsize_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
 
 
 # --- bubble plot ---
-
 def plot_track_grainsize_bubble(
     df_per_track_grainsize: pd.DataFrame,
     df_per_track_velocities: pd.DataFrame,
     df_velocities_lowess: pd.DataFrame,
-    event: str,
-    start_frame: int,
-    end_frame: int,
-    df_time: pd.DataFrame,
-    output_dir: Path | None = None,
-    ylim_velocity: tuple[float, float] | None = None,
+    df_time: pd.DataFrame, config
 ) -> None:
 
-    frame_bin = 10  # BIN WIDTH (frames)
+    # Config Values
+    event = config.EVENT
+    output_dir = config.OUTPUT_DIR
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+    ylim_velocity = config.YLIM_VELOCITY
 
+    frame_bin = 10  # BIN WIDTH (frames)
     fig, ax = plt.subplots(figsize=(16, 7))
 
 
@@ -572,34 +586,35 @@ def plot_track_grainsize_bubble(
     g = df_bin["mean_track_grainsize"]
 
     # ------------------------------------------------------------------
-    # Log-scaled marker sizes
+    # scaled marker sizes
     # ------------------------------------------------------------------
     n = df_bin["n_tracks"]
-
     n_log = np.log10(n)
     n_norm = (n_log - n_log.min()) / (n_log.max() - n_log.min())
+    sizes = 15 + n_norm * 120                           # size scaling
 
-    sizes = 15 + n_norm * 120
+    # ------------------------------------------------------------------
+    # Color marker - grain size depended
+    # ------------------------------------------------------------------
+    # g_log = np.log10(g + 1e-6)                        # log scaled grain size
+    g_norm = (g - g.min()) / (g.max() - g.min())        # normalize grain sizes from 0 to 1, for scaling
+    v_min = g.min()                                     # Compute min and percentile
+    v_max = float(np.percentile(g, 98))              # percentile
 
-    g = df_bin["mean_track_grainsize"]
-    g_log = np.log10(g + 1e-6)
-    g_norm = (g - g.min()) / (g.max() - g.min())
-
-    # Compute 97th percentile
-    vmin = g.min()
-    vmax = np.percentile(g, 98)  # 95th percentile
-
+    # ------------------------------------------------------------------
+    # Plots
+    # ------------------------------------------------------------------
     sc = ax.scatter(
         x,
         y,
-        s=sizes,  # confidence
-        c=g_norm,  # g_norm#g_log,           # grain size
+        s=sizes,
+        c=g_norm,
         cmap="rainbow",
         alpha=0.90,
         edgecolors="none",
         label=f"Median track velocity (binned over {frame_bin} frames)",
-        vmin=vmin,
-        vmax=vmax,
+        vmin=v_min,
+        vmax=v_max,
     )
 
     ax.plot(
@@ -615,6 +630,7 @@ def plot_track_grainsize_bubble(
     cbar.set_label("Grain Size (m)", fontsize=14)
     cbar.ax.tick_params(labelsize=12, width=1.2, length=6)
 
+
     style_main_axis(ax,
                     xlabel="Frame Number",
                     xlim=(start_frame, end_frame),
@@ -626,11 +642,77 @@ def plot_track_grainsize_bubble(
     add_time_top_axis(ax, df_time)
 
     # --- Legend
+    add_standard_legend(ax, fontsize= 14, loc='best')
+
+    # save
+    fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, output_dir)
+
+
+# --- Cross-section Plots
+def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
+
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+    y_axis_start = config.Y_AXIS_START
+    y_axis_end = config.Y_AXIS_END
+
+
+    # Filter DF with mask
+    mask = (
+            df_clean['frame'].between(start_frame, end_frame)
+            & df_clean["bb_center_lidar_y"].between(y_axis_end, y_axis_start)
+    )
+    df = df_clean[mask]
+
+    # Calculate Track Velocities in predefined y-axis range
+    df = (
+        df.groupby("track")
+        .agg(
+            mean_track_velocity=("velocity", "mean"),
+            mean_x_axis_pos=("bb_center_lidar_x", "mean"),
+            mean_time=('time', 'mean')
+        )
+    )
+
+    t_min = df["mean_time"].min()
+    t_max = df["mean_time"].max()
+
+    norm = Normalize(vmin=0, vmax=t_max - t_min)
+
+    df['mean_time'] = df['mean_time'] - t_min
+
+    fig, ax = plt.subplots(figsize=(16, 7))
+
+    sc = ax.scatter(
+        df['mean_x_axis_pos'],
+        df['mean_track_velocity'],
+        label="Mean velocity per track",
+        c=df['mean_time'],
+        norm=norm,  # color by mean time
+        cmap='plasma',  # 'viridis'
+        s=18,
+        alpha=0.85,
+        edgecolors="none",
+        rasterized=True
+    )
+
+    style_main_axis(
+        ax,
+        xlabel='X-axis - cross section (m)',
+        ylabel='Velocity (m/s)',
+        xlim=(-10, 0),
+        ylim=config.YLIM_VELOCITY
+    )
+
+    # Add colorbar
+    cbar = fig.colorbar(sc, ax=ax)
+    cbar.set_label("Mean Time (s)")
+
+    # Legend
     add_standard_legend(ax)
 
     # save
-    fig.tight_layout()
-    fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
+    fig_name = f"Cross_section_velocity_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)

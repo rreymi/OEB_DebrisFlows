@@ -264,14 +264,15 @@ def merge_piv_and_tracking(df_piv: pd.DataFrame, df_mova: pd.DataFrame) -> pd.Da
 
 def compute_track_velocities(
     df_filtered: pd.DataFrame,
+    lowess_frame_window: int,
+    lowess_iterations: int,
+    lowess_gap_threshold: int,
+    lowess_segment_length: int,
     columns: list | None = None,
-    lowess_frame_window: int = 20,
-    lowess_iterations: int = 0,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     if columns is None:
         columns = ["frame", "track", "velocity", "grainsize", "time"]
-
 
     # 1) Reduce dataframe
     df = df_filtered[columns].copy()
@@ -301,53 +302,82 @@ def compute_track_velocities(
     # 4) Combine - trackID with center frame + all stats
     # Take all per-track statistics, attach the representative frame of each track,
     # turn the index into a column, and order tracks in time
-
     df_per_track_velocities = (
         track_velocities
         .join(center_frame)
         .reset_index()
         .sort_values("center_frame")
-    )
-
-    # 5) LOWESS smoothing
-    n_frames = df["frame"].nunique()
-    frac = lowess_frame_window / n_frames
-
-    lowess_mean = lowess(
-        endog=df_per_track_velocities["mean_track_velocity"],
-        exog=df_per_track_velocities["center_frame"],
-        frac=frac,
-        it=lowess_iterations,
-        return_sorted=True
-    )
-
-    lowess_median = lowess(
-        endog=df_per_track_velocities["median_track_velocity"],
-        exog=df_per_track_velocities["center_frame"],
-        frac=frac,
-        it=lowess_iterations,
-        return_sorted=True
-    )
-
-    # Convert LOWESS results into DataFrames (you already did this)
-    df_lowess_mean = pd.DataFrame(
-        lowess_mean,
-        columns=["frame", "lowess_mean_track_velocity"]
-    )
-
-    df_lowess_median = pd.DataFrame(
-        lowess_median,
-        columns=["frame", "lowess_median_track_velocity"]
-    )
-
-    # Merge both curves into a single DataFrame, aligned by frame
-    df_velocities_lowess = (
-        df_lowess_mean
-        .merge(df_lowess_median, on="frame", how="outer")
-        .drop_duplicates("frame", keep= "first")
-        .sort_values("frame")
         .reset_index(drop=True)
     )
+
+    # 5) SEGMENTATION
+    df_per_track_velocities["frame_diff"] = (
+        df_per_track_velocities["center_frame"].diff()
+    )
+
+    df_per_track_velocities["segment"] = (
+            df_per_track_velocities["frame_diff"] > lowess_gap_threshold
+    ).cumsum()
+    # 6) LOWESS per segment
+    # ---------------------------------------------------
+    lowess_results: list[pd.DataFrame] = []
+
+    for seg_id, seg in df_per_track_velocities.groupby("segment"):
+
+        if len(seg) < lowess_segment_length:
+            continue  # too short for smoothing
+
+        n_frames_segment = seg["center_frame"].nunique()
+        frac = min(1.0, lowess_frame_window / n_frames_segment)
+
+        # Mean smoothing
+        lowess_mean = lowess(
+            endog=seg["mean_track_velocity"],
+            exog=seg["center_frame"],
+            frac=frac,
+            it=lowess_iterations,
+            return_sorted=True
+        )
+
+        df_lowess_mean = pd.DataFrame(
+            lowess_mean,
+            columns=["frame", "lowess_mean_track_velocity"]
+        )
+
+        # Median smoothing
+        lowess_median = lowess(
+            endog=seg["median_track_velocity"],
+            exog=seg["center_frame"],
+            frac=frac,
+            it=lowess_iterations,
+            return_sorted=True
+        )
+
+        df_lowess_median = pd.DataFrame(
+            lowess_median,
+            columns=["frame", "lowess_median_track_velocity"]
+        )
+
+        df_segment = (
+            df_lowess_mean
+            .merge(df_lowess_median, on="frame", how="outer")
+        )
+
+        df_segment["segment"] = seg_id
+
+        lowess_results.append(df_segment)
+
+    # ---------------------------------------------------
+    # 7) Combine all segments
+    # ---------------------------------------------------
+    if lowess_results:
+        df_velocities_lowess = (
+            pd.concat(lowess_results)
+            .sort_values("frame")
+            .reset_index(drop=True)
+        )
+    else:
+        df_velocities_lowess = pd.DataFrame()
 
     return df_per_track_velocities, df_velocities_lowess
 

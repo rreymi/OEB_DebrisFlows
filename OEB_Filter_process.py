@@ -21,7 +21,6 @@ def filter_process(plot_xy_movement: bool = True):
     output_dir.mkdir(parents=True, exist_ok=True)
 
 
-
     # --- Load raw Data ---
     df_raw = load_and_merge_event_data(event)
 

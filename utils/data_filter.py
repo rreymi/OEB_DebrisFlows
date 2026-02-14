@@ -50,7 +50,7 @@ def filter_tracks(
 
 # Function for Filter step 2
 def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
-                            return_bad: bool = False, verbose: bool = True):
+                            return_bad_df: bool = False, verbose: bool = True):
     """
     Remove tracks where ANY frame-to-frame movement exceeds a threshold.
 
@@ -62,7 +62,7 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
     jump_threshold : float
         Maximum allowed Euclidean jump distance between consecutive frames.
 
-    return_bad : bool, optional
+    return_bad_df : bool, optional
         If True, returns (good_df, bad_df). other returns only filtered df.
 
     verbose : bool, optional
@@ -96,15 +96,15 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
 
     # --- Print summary ---
     if verbose:
-        print("=== Jump Filter Summary ===")
+        print("--- Jump Filter Summary ---")
         print(f"Threshold: {jump_threshold}")
-        print(f"Total tracks: {df['track'].nunique()}")
+        print(f"Total received: {df['track'].nunique()}")
         print(f"Good tracks: {len(good_tracks)}")
         print(f"Bad tracks : {len(bad_tracks)}")
-        print("===========================")
+        print("-------------------------")
 
     # --- Return ---
-    if return_bad:
+    if return_bad_df:
         return df_good, df_bad
     return df_good
 
@@ -169,7 +169,7 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
     kept_tracks = len(moving_tracks)
     removed_tracks = total_tracks - kept_tracks
     print('--- Summary Filter y Axis Movement ---')
-    print(f"Tracks total: {total_tracks}")
+    print(f"Tracks received: {total_tracks}")
     print(f"Tracks kept (movement > {yaxis_min_length}): {kept_tracks}")
     print(f"Tracks removed: {removed_tracks}")
     print("-------------------------")

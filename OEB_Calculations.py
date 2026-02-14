@@ -60,13 +60,7 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
         # -------------------------------------------------------------------------
         # Compute Statistics Per Track
         # -------------------------------------------------------------------------
-        df_per_track_velocities, df_velocities_lowess = compute_track_velocities(
-            df_clean,
-            lowess_frame_window=config.LOWESS_FRAME_WINDOW_SIZE,
-            lowess_iterations=config.LOWESS_ITERATIONS,
-            lowess_gap_threshold=config.LOWESS_GAP_THRESHOLD,
-            lowess_segment_length=config.LOWESS_SEGMENT_LENGTH
-        )
+        df_per_track_velocities, df_velocities_lowess = compute_track_velocities(df_clean, config)
 
         # Save track-based statistics
         df_per_track_velocities.to_parquet(
@@ -89,11 +83,7 @@ def calculate_gs() -> None:
     # -------------------------------------------------------------------------
     df_clean = pd.read_parquet(output_dir / f"df_clean_{event}.parquet")
 
-    df_per_track_grainsize, df_grainsize_lowess = compute_track_grainsize(
-            df_clean,
-            lowess_frame_window=config.LOWESS_FRAME_WINDOW_SIZE,
-            lowess_iterations=config.LOWESS_ITERATIONS
-    )
+    df_per_track_grainsize, df_grainsize_lowess = compute_track_grainsize(df_clean, config)
 
     # Save track-based statistics
     df_per_track_grainsize.to_parquet(

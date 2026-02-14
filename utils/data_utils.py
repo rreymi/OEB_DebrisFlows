@@ -7,6 +7,25 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from typing import Tuple
 
 
+def load_and_merge_event_data(event: str) -> pd.DataFrame:
+    """
+    Load raw stats and time column for a given event, merge them, and return the dataframe.
+    """
+
+    event_dir = Path("input_data") / event
+
+    # Read files
+    df_raw = pd.read_csv(event_dir / f"all_stats_{event}.txt")
+    time_column = pd.read_csv(event_dir / f"time_column_{event}.txt")
+
+    # Merge on frame columns
+    df_merged = df_raw.merge(time_column, left_on="frame", right_on="frame_img", how="left")
+
+    # Drop redundant column
+    df_merged = df_merged.drop(columns="frame_img")
+
+    return df_merged
+
 def extract_frame_time_table(
     df: pd.DataFrame,
     frame_col: str = "frame",
@@ -114,53 +133,6 @@ def prepare_df_for_plot(
     return df_event
 
 
-def load_and_merge_event_data(event: str, base_dir: str = "input_data") -> pd.DataFrame:
-    """
-    Load raw stats and time column for a given event, merge them, and return the dataframe.
-
-    Parameters:
-        event (str): Name of the event folder.
-        base_dir (str): Base folder containing the event subfolders. Default: '01_Input_DATA'
-
-    Returns:
-        pd.DataFrame: Merged dataframe.
-    """
-    event_dir = Path(base_dir) / event
-
-    # Read files
-    df_raw = pd.read_csv(event_dir / f"all_stats_{event}.txt")
-    time_column = pd.read_csv(event_dir / f"time_column_{event}.txt")
-
-    # Merge on frame columns
-    df_merged = df_raw.merge(time_column, left_on="frame", right_on="frame_img", how="left")
-
-    # Drop redundant column
-    df_merged = df_merged.drop(columns="frame_img")
-
-    return df_merged
-
-
-def summarize_df(df):
-    """
-    Prints basic summary information about a dataframe
-    containing 'frame' and 'track' columns.
-    """
-    # --- Frame stats ---
-    n_frames = df['frame'].nunique()
-    min_frame = df['frame'].min()
-    max_frame = df['frame'].max()
-    print('Number of img frames in dataframe:', n_frames)
-    print('Start at img frame number:', min_frame)
-    print('End at img frame number:', max_frame)
-
-    # --- Track stats ---
-    unique_ids = df['track'].nunique()
-    min_id = df['track'].min()
-    max_id = df['track'].max()
-    print("\nUnique Track IDs in dataframe:", unique_ids)
-    print('Start ID:', min_id)
-    print('End ID:', max_id)
-
 
 def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -> pd.DataFrame:
     """
@@ -180,6 +152,7 @@ def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -
     df.loc[mask, cols_to_zero] = np.nan
 
     return df
+
 
 def load_piv_data(event: str) -> pd.DataFrame:
     """
@@ -262,19 +235,12 @@ def merge_piv_and_tracking(df_piv: pd.DataFrame, df_mova: pd.DataFrame) -> pd.Da
     return df_merged
 
 
-def compute_track_velocities(
-    df_filtered: pd.DataFrame,
-    lowess_frame_window: int,
-    lowess_iterations: int,
-    lowess_gap_threshold: int,
-    lowess_segment_length: int,
-    columns: list | None = None,
+def compute_track_velocities(df_filtered: pd.DataFrame, config,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
-    if columns is None:
-        columns = ["frame", "track", "velocity", "grainsize", "time"]
 
     # 1) Reduce dataframe
+    columns = ["frame", "track", "velocity", "grainsize", "time"]
     df = df_filtered[columns].copy()
 
     # Compute one representative frame and summary statistics per track
@@ -316,26 +282,27 @@ def compute_track_velocities(
     )
 
     df_per_track_velocities["segment"] = (
-            df_per_track_velocities["frame_diff"] > lowess_gap_threshold
-    ).cumsum()
+            df_per_track_velocities["frame_diff"] > config.LOWESS_GAP_THRESHOLD
+    ).cumsum() # Counts True = 1, as soon as threshold reached a new segment starts
+
     # 6) LOWESS per segment
     # ---------------------------------------------------
     lowess_results: list[pd.DataFrame] = []
 
     for seg_id, seg in df_per_track_velocities.groupby("segment"):
 
-        if len(seg) < lowess_segment_length:
+        if len(seg) < config.LOWESS_SEGMENT_LENGTH:
             continue  # too short for smoothing
 
         n_frames_segment = seg["center_frame"].nunique()
-        frac = min(1.0, lowess_frame_window / n_frames_segment)
+        frac = min(1.0, config.LOWESS_FRAME_WINDOW_SIZE / n_frames_segment)
 
         # Mean smoothing
         lowess_mean = lowess(
             endog=seg["mean_track_velocity"],
             exog=seg["center_frame"],
             frac=frac,
-            it=lowess_iterations,
+            it=config.LOWESS_ITERATIONS,
             return_sorted=True
         )
 
@@ -349,7 +316,7 @@ def compute_track_velocities(
             endog=seg["median_track_velocity"],
             exog=seg["center_frame"],
             frac=frac,
-            it=lowess_iterations,
+            it=config.LOWESS_ITERATIONS,
             return_sorted=True
         )
 
@@ -383,9 +350,7 @@ def compute_track_velocities(
 
 
 def compute_track_grainsize(
-    df_filtered: pd.DataFrame,
-    lowess_frame_window: int = 20,
-    lowess_iterations: int = 0,
+        df_filtered: pd.DataFrame, config
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     if df_filtered.empty:
@@ -394,12 +359,10 @@ def compute_track_grainsize(
             "cannot compute grain-size statistics."
         )
 
+    # Reduce size by keeping only essential columns
     cols = ['frame', 'track', 'velocity', 'grainsize', 'bb_width', "bb_center_lidar_x", "bb_center_lidar_y",
             "bb_center_lidar_z", 'time']
-
-    # Reduce size by keeping only essential columns
     df = df_filtered[cols]
-
     df = df.sort_values(["track", "frame"])
 
     # Calculate step distance between track appearance
@@ -408,11 +371,16 @@ def compute_track_grainsize(
         .diff()
     )
 
-    df["step_distance"] = np.sqrt(
-        dxyz["bb_center_lidar_x"] ** 2
-        + dxyz["bb_center_lidar_y"] ** 2
-        + dxyz["bb_center_lidar_z"] ** 2
-    ).fillna(0)
+    df["step_distance"] = (             # calc the vector length row wise.
+        np.linalg.norm(
+            dxyz[[
+                "bb_center_lidar_x",
+                "bb_center_lidar_y",
+                "bb_center_lidar_z"
+            ]],
+            axis=1
+        )
+    )
 
     # Calculate statistic per TRACK
     track_stats = (
@@ -460,13 +428,13 @@ def compute_track_grainsize(
 
     # 5) LOWESS smoothing
     n_frames = df["frame"].nunique()
-    frac = lowess_frame_window / n_frames
+    frac = config.LOWESS_FRAME_WINDOW_SIZE / n_frames
 
     grainsize_lowess_mean = lowess(
         endog=df_per_track_grainsize["mean_track_grainsize"],
         exog=df_per_track_grainsize["center_frame"],
         frac=frac,
-        it=lowess_iterations,
+        it=config.LOWESS_ITERATIONS,
         return_sorted=True
     )
 

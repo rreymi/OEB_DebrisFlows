@@ -3,7 +3,6 @@ from pathlib import Path
 # --------------------------------------------
 # --- Event details
 # --------------------------------------------
-
 EVENT_YEAR = "2024"
 EVENT_MONTH = "06"
 EVENT_DAY = "14"
@@ -53,21 +52,18 @@ LOWESS_SEGMENT_LENGTH = 20
 # --------------------------------------------
 # --- Plot Parameters
 # --------------------------------------------
-
-# GENERAL
 FIG_SIZE = (14,7)
 YLIM_VELOCITY = (0, 5)
 YLIM_GRAINSIZE = (0, 1)
 
-# PER FRAME
-
-
-
-# PER TRACK
-
+# PER TRACK Plots
 STATISTIC_TYPE = "mean" # or "median"
 
 # Cross-section plots
-
 Y_AXIS_START= 4
 Y_AXIS_END = -4
+X_LIM_AXIS_CS = (-8, 2)
+
+# X - Y Track Mov Plot
+X_LIM_AXIS = (-8, 2)
+Y_LIM_AXIS = (-8, 8)

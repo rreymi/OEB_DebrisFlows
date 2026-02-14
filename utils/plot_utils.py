@@ -31,17 +31,56 @@ def style_main_axis(
 
     ax.tick_params(axis="both", labelsize=fontsize - 1, pad=8, length=4, width=1)
     ax.grid(True, linestyle="-", alpha=0.4)
-
+'''
 def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
     if df_time is None or df_time.empty:
         return lambda frame, pos=None: ""
 
     frame_to_time = dict(zip(df_time["frame"], df_time["time"]))
 
-    def formatter(frame):
+    def formatter(frame, pos=None):
         nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
         seconds = frame_to_time[nearest_frame]
 
+        if pd.isna(seconds):
+            return ""
+
+        minutes = int(seconds) // 60
+        secs = int(seconds) % 60
+        return f"{minutes:02d}:{secs:02d}"
+
+    return formatter
+'''
+
+
+def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
+    if df_time is None or df_time.empty:
+        return lambda frame, _: ""
+
+    # Convert to sorted arrays for fast lookup
+    frames = df_time["frame"].to_numpy()
+    times = df_time["time"].to_numpy()
+
+    # Ensure frames are sorted
+    sorted_idx = np.argsort(frames)
+    frames = frames[sorted_idx]
+    times = times[sorted_idx]
+
+    def formatter(frame, _):
+        # Find nearest frame efficiently
+        idx = np.searchsorted(frames, frame)
+        if idx == 0:
+            nearest_idx = 0
+        elif idx >= len(frames):
+            nearest_idx = len(frames) - 1
+        else:
+            # Choose the closer of the two neighbors
+            if abs(frames[idx] - frame) < abs(frames[idx - 1] - frame):
+                nearest_idx = idx
+            else:
+                nearest_idx = idx - 1
+
+        seconds = times[nearest_idx]
         if pd.isna(seconds):
             return ""
 
@@ -302,7 +341,6 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
 
 def plot_xy_mov_tracks_color_vel(
     df: pd.DataFrame, config,
-    x_lim=(-10, 0), y_lim=(-8, 8),
     line_width: float = 1,
     cmap_name: str = "viridis",
     alpha_line: float = 0.75,
@@ -344,8 +382,8 @@ def plot_xy_mov_tracks_color_vel(
 
     # Axis formatting
     style_main_axis(ax,
-                    xlim=x_lim,
-                    ylim=y_lim,
+                    xlim=config.X_LIM_AXIS,
+                    ylim=config.Y_LIM_AXIS,
                     xlabel = "X (LiDAR bbox center) (m)",
                     ylabel="Y (LiDAR bbox center) (m)",
                     fontsize= 14)
@@ -702,7 +740,7 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
         ax,
         xlabel='X-axis - cross section (m)',
         ylabel='Velocity (m/s)',
-        xlim=(-10, 0),
+        xlim=config.X_LIM_AXIS_CS,
         ylim=config.YLIM_VELOCITY
     )
 

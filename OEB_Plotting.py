@@ -55,6 +55,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
             color_ma="red",
             label_name='number of detections',
             y_label='Number of Detections',
+            df_time=df_time,
             y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
         )
 

@@ -19,25 +19,26 @@ from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
 # Configuration / Parameters # import config --> CHECK CONFIG
 # ------------------------------
 import config
-config.START_FRAME = 35000
-config.END_FRAME = 40000
+config.START_FRAME = 42000
+config.END_FRAME = 46001
 
 # ------------------------------
 # Run options
 # ------------------------------
-Run_Filter = False                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
-Run_Calculations = False                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
-Run_Plotting = True                     # Visualize data
+Run_Filter = True                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
+Run_Calculations = True                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
+Run_Plotting = True                    # Visualize data
 
-
-# --- Calculations
+# ------------------------------
+# --- Calculations ---
 # Velocity
 run_calc_Vel = True
-run_calc_per_frame = False              # df_mova and df_stats (moving averages of per frame statistics)
-run_calc_per_track = True               # lowess track velocity
+run_calc_per_frame = True              # df_mova and df_stats (moving averages of per frame statistics)
+run_calc_per_track = True              # lowess track velocity
 # Grain SIze
-run_calc_GS = False                     # lowess track grainsize
+run_calc_GS = True                     # lowess track grainsize
 
+# ------------------------------
 # --- Plotting ---
 plot_stats_per_frame = True             # Per Frame stats (Moving Average plots)
 plot_track_velocity = True              # Per Track stats (LOWESS Plot)
@@ -50,8 +51,7 @@ plot_cross_sec = True                   # Velocity cross-section plot
 def main():
 
     if Run_Filter:
-        plot_xy_movement = True
-        filter_process(plot_xy_movement)
+        filter_process()
 
     if Run_Calculations:
         if run_calc_Vel:

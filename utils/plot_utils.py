@@ -31,26 +31,6 @@ def style_main_axis(
 
     ax.tick_params(axis="both", labelsize=fontsize - 1, pad=8, length=4, width=1)
     ax.grid(True, linestyle="-", alpha=0.4)
-'''
-def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
-    if df_time is None or df_time.empty:
-        return lambda frame, pos=None: ""
-
-    frame_to_time = dict(zip(df_time["frame"], df_time["time"]))
-
-    def formatter(frame, pos=None):
-        nearest_frame = min(frame_to_time.keys(), key=lambda f: abs(f - frame))
-        seconds = frame_to_time[nearest_frame]
-
-        if pd.isna(seconds):
-            return ""
-
-        minutes = int(seconds) // 60
-        secs = int(seconds) % 60
-        return f"{minutes:02d}:{secs:02d}"
-
-    return formatter
-'''
 
 
 def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
@@ -90,6 +70,7 @@ def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
 
     return formatter
 
+
 def add_time_top_axis(
     ax: plt.Axes,
     df_time: pd.DataFrame | None,
@@ -107,6 +88,7 @@ def add_time_top_axis(
     ax_top.tick_params(axis="x", labelsize=fontsize - 1, pad=8, length=4, width=1)
 
     return ax_top
+
 
 def add_standard_legend(
     ax: plt.Axes,
@@ -126,6 +108,7 @@ def add_standard_legend(
         plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
 
     return leg
+
 
 def save_plot(fig, fig_name, output_dir):
     fig.tight_layout()
@@ -335,7 +318,6 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
     fig_name = f"{title}.jpeg"
     output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
 
 
 
@@ -653,15 +635,20 @@ def plot_track_grainsize_bubble(
         label=f"Median track velocity (binned over {frame_bin} frames)",
         vmin=v_min,
         vmax=v_max,
+        zorder=1
     )
 
-    ax.plot(
-        df_velocities_lowess["frame"],
-        df_velocities_lowess["lowess_mean_track_velocity"],
-        c="tab:grey",
-        label="Smoothed track velocities (LOWESS)",
-        alpha=0.80
-    )
+    # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
+    for i, (_, seg) in enumerate(df_velocities_lowess.groupby("segment")):
+        ax.plot(
+            seg['frame'],
+            seg["lowess_mean_track_velocity"],
+            label="Smoothed track velocities (LOWESS)" if i == 0 else None,  # label only once
+            c="tab:grey",
+            linewidth=2.2,
+            alpha=0.80,
+            zorder=2
+        )
 
     # --- Log ticks, normal numbers ---
     cbar = plt.colorbar(sc, ax=ax)

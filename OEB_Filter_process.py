@@ -43,7 +43,7 @@ def filter_process():
     # Step 4
     df_clean = replace_zero_velocity_with_nan(df_filtered_03)
 
-    # df_clean = df_raw
+    df_clean = df_raw
 
     # --- Summary ---
     n_tracks = df_clean["track"].nunique()

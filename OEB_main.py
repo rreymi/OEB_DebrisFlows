@@ -19,8 +19,8 @@ from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
 # Configuration / Parameters # import config --> CHECK CONFIG
 # ------------------------------
 import config
-config.START_FRAME = 42000
-config.END_FRAME = 46001
+config.START_FRAME = 65900
+config.END_FRAME = 71500
 
 # ------------------------------
 # Run options

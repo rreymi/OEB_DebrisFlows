@@ -43,7 +43,7 @@ def filter_process():
     # Step 4
     df_clean = replace_zero_velocity_with_nan(df_filtered_03)
 
-    df_clean = df_raw
+    # df_clean = df_raw
 
     # --- Summary ---
     n_tracks = df_clean["track"].nunique()
@@ -61,6 +61,7 @@ def filter_process():
     )
 
     # --- Save DFs---
+    df_raw.to_parquet(config.OUTPUT_DIR / f"df_raw_{event}.parquet")
     df_clean.to_parquet(config.OUTPUT_DIR / f"df_clean_{event}.parquet")
     df_time.to_parquet(config.OUTPUT_DIR / f"df_time_{event}.parquet")
     df_bad.to_parquet(config.OUTPUT_DIR / f"df_bad_{event}.parquet")

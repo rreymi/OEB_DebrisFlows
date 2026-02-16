@@ -10,6 +10,7 @@ from utils.plot_utils import (
     plot_xy_mov_tracks_color_vel,
     plot_track_grainsize_bubble,
     plot_cross_section_velocity,
+    plot_number_of_detections,
 
 )
 
@@ -19,6 +20,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
     df_time = pd.read_parquet(config.OUTPUT_DIR/ f"df_time_{config.EVENT}.parquet")
     df_mova = pd.read_parquet(config.OUTPUT_DIR/ f"df_mova_{config.EVENT}.parquet")
     df_piv_mova = pd.read_parquet(config.OUTPUT_DIR/ f"df_piv_mova_{config.EVENT}.parquet")
+    df_clean = pd.read_parquet(config.OUTPUT_DIR / f"df_clean_{config.EVENT}.parquet")
 
     if  plot_stats_per_frame:       # Per Frame Plots
 
@@ -44,29 +46,15 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
             label_name='grain size',
             y_label='Grain Size (m)',
             df_time=df_time,
-            y_lim=config.YLIM_VELOCITY,
+            y_lim=config.YLIM_GRAINSIZE,
         )
 
-        # Plot tracks
-        plot_variable_against_frame(
-            df_mova=df_mova, config= config,
-            plot_variable="tracks",
-            statistic="mean",  # statistic is ignored for tracks
-            color_ma="red",
-            label_name='number of detections',
-            y_label='Number of Detections',
-            df_time=df_time,
-            y_lim=(0, df_mova['unique_tracks_per_frame'].max() * 1.1),
-        )
 
         # Plot
         plot_piv_and_mean_velocity_per_frame(df_piv_mova, df_mova, df_time, config)
 
 
-
-
         print("--- Per FRAME plots done --- \n")
-
 
     if  plot_stats_per_track:       # ---  Per Track Plots
 
@@ -81,7 +69,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
 
 
     if plot_xy_mov_for_frame_sequence:
-        df_clean = pd.read_parquet(config.OUTPUT_DIR/ f"df_clean_{config.EVENT}.parquet")
+
         df_clean_sequence = df_clean[df_clean['frame'].between(config.START_FRAME,config.END_FRAME)]
 
         # Track path raw

@@ -62,8 +62,8 @@ STATISTIC_TYPE = "mean" # or "median"
 # Cross-section plots
 Y_AXIS_START= 4
 Y_AXIS_END = -4
-X_LIM_AXIS_CS = (-8, 2)
+X_LIM_AXIS_CS = (-10, 2)
 
 # X - Y Track Mov Plot
-X_LIM_AXIS = (-8, 2)
+X_LIM_AXIS = (-10, 2)
 Y_LIM_AXIS = (-8, 8)

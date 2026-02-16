@@ -51,7 +51,7 @@ def compute_mean_median_per_frame(
     """
 
     if columns is None:
-        columns = ['frame', 'track', 'velocity', 'grainsize', 'time']
+        columns = ['frame', 'velocity', 'grainsize', 'time']
 
     # Reduce size by keeping only essential columns
     df = df_raw[columns].copy()
@@ -61,7 +61,6 @@ def compute_mean_median_per_frame(
     df['mean_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('mean')
     df['median_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('median')
     df['median_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('median')
-    df['unique_tracks_per_frame'] = df.groupby('frame')['track'].transform('nunique') # each row becomes result of nun
 
     return df
 
@@ -118,7 +117,6 @@ def prepare_df_for_plot(
         "median_velocity_per_frame": "median_vel_ma",
         "mean_grainsize_per_frame": "mean_grain_ma",
         "median_grainsize_per_frame": "median_grain_ma",
-        "unique_tracks_per_frame": "tracks_ma",
     }
 
     # --- Compute moving averages ---

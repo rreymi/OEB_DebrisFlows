@@ -12,6 +12,7 @@ from scipy.interpolate import interp1d
 import matplotlib.cm as cm
 
 
+
 # --- Helper Functions for all plots
 def style_main_axis(
     ax: plt.Axes,
@@ -102,10 +103,6 @@ def add_standard_legend(
         facecolor="white",
         edgecolor="black",
     )
-
-    # Make first line visually dominant (your usual style)
-    if leg.get_lines():
-        plt.setp(leg.get_lines()[0], alpha=1, linewidth=2)
 
     return leg
 
@@ -740,4 +737,195 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
     # save
     fig_name = f"Cross_section_velocity_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
+
+
+
+
+# Detections
+def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
+
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+
+    # Filter first
+    df = df_clean.loc[df_clean["frame"].between(start_frame, end_frame)]
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts = (
+        df.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+
+    ax.plot(
+        df_counts['frame'],
+        df_counts['unique_tracks_per_frame'],
+        label="Detections per frame after filtering",
+        c='tab:green',
+        alpha=1,
+        linewidth=2,
+        zorder=2
+    )
+
+    style_main_axis(
+        ax,
+        xlabel='Frame Number',
+        ylabel='Number of Detections',
+        xlim= (start_frame, end_frame),
+        ylim= (0, df_counts['unique_tracks_per_frame'].max() * 1.1),
+    )
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time)
+
+    # --- Legend
+    add_standard_legend(ax, fontsize=14, loc='best')
+
+    # save
+    fig_name = f"Detections_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
+
+
+
+
+def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -> None:
+
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+
+    # Filter first
+    df = df_clean.loc[df_clean["frame"].between(start_frame, end_frame)]
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts = (
+        df.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+
+
+    ax.plot(
+        df_counts_yolo['frame_number_img'],
+        df_counts_yolo['number_of_detections_yolo'],
+        label="Detections per frame (YOLO)",
+        c='tab:grey',
+        alpha=0.90,
+        linewidth=1,
+        zorder=1
+    )
+
+    ax.plot(
+        df_counts['frame'],
+        df_counts['unique_tracks_per_frame'],
+        label="Detections per frame after filtering",
+        c='tab:green',
+        alpha=1,
+        linewidth=2,
+        zorder=2
+    )
+
+    style_main_axis(
+        ax,
+        xlabel='Frame Number',
+        ylabel='Number of Detections',
+        xlim= (start_frame, end_frame),
+        ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
+    )
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time)
+
+    # --- Legend
+    add_standard_legend(ax, fontsize=14, loc='best')
+
+    # save
+    fig_name = f"Detections_model_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR)
+
+
+
+def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_raw, df_time, config) -> None:
+
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+
+    # Filter first
+    df_clean = df_clean.loc[df_clean["frame"].between(start_frame, end_frame)]
+    df_raw = df_raw.loc[df_raw["frame"].between(start_frame, end_frame)]
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts = (
+        df_clean.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts_raw = (
+        df_raw.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+
+    ax.plot(
+        df_counts_yolo['frame_number_img'],
+        df_counts_yolo['number_of_detections_yolo'],
+        label="Detections per frame (YOLO)",
+        c='tab:grey',
+        alpha=0.90,
+        linewidth=1,
+        zorder=1
+    )
+
+    ax.plot(
+        df_counts_raw['frame'],
+        df_counts_raw['unique_tracks_per_frame'],
+        label="Detections per frame after tracking",
+        c='tab:cyan',
+        alpha=1,
+        linewidth=1.5,
+        zorder=2
+    )
+
+    ax.plot(
+        df_counts['frame'],
+        df_counts['unique_tracks_per_frame'],
+        label="Detections per frame after filtering",
+        c='tab:green',
+        alpha=1,
+        linewidth=2,
+        zorder=3
+    )
+
+
+    style_main_axis(
+        ax,
+        xlabel='Frame Number',
+        ylabel='Number of Detections',
+        xlim= (start_frame, end_frame),
+        ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
+    )
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time)
+
+    # --- Legend
+    add_standard_legend(ax, fontsize=14, loc='best')
+
+    # save
+    fig_name = f"Detections_all_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
     save_plot(fig, fig_name, config.OUTPUT_DIR)

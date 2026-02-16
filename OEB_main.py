@@ -13,14 +13,15 @@
 from OEB_Filter_process import filter_process
 from OEB_Calculations import calculate_vel, calculate_gs
 from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
+from OEB_Model_performance import plot_detections
 
 
 # ------------------------------
 # Configuration / Parameters # import config --> CHECK CONFIG
 # ------------------------------
 import config
-config.START_FRAME = 65900
-config.END_FRAME = 71500
+config.START_FRAME = 39000
+config.END_FRAME = 41600
 
 # ------------------------------
 # Run options
@@ -45,6 +46,7 @@ plot_track_velocity = True              # Per Track stats (LOWESS Plot)
 plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
 plot_xy_mov_for_frame_sequence = True   # X - Y Track movement
 plot_cross_sec = True                   # Velocity cross-section plot
+plot_number_of_detections = True        # Plot number of Detections (YOLO, tracking and after  filtering)
 
 
 
@@ -67,6 +69,9 @@ def main():
 
         if plot_cross_sec:
             plot_cross_section()
+
+        if plot_number_of_detections:
+            plot_detections()
 
 
 

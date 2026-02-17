@@ -1,4 +1,5 @@
 import config
+import logging
 
 from utils.data_filter import (
     filter_tracks,
@@ -10,7 +11,7 @@ from utils.data_filter import (
 from utils.data_utils import load_and_merge_event_data, extract_frame_time_table
 
 def filter_process():
-
+    logging.info("Filter Process started...")
     # --- Event ---
     event = config.EVENT
 
@@ -48,8 +49,8 @@ def filter_process():
     # --- Summary ---
     n_tracks = df_clean["track"].nunique()
     n_tracks_raw = df_raw["track"].nunique()
-    print(
-        f"\nFiltering summary:\n"
+
+    logging.info(f" --- Filtering summary:\n"
         f"Total track IDs in DF:     {n_tracks_raw}\n"
         f"Removed track IDs:   {n_tracks_raw - n_tracks}\n"
         f"Remaining track IDs: {n_tracks}\n"
@@ -58,6 +59,8 @@ def filter_process():
         f"First Image Frame:   {df_clean['frame'].min()}\n"
         f"Last Image Frame:   {df_clean['frame'].max()}\n"
         f"Total number of Image Frames:   {df_clean['frame'].nunique()}\n"
+        "\n--- Filter process finished ---\n"
+        "df_clean and df_time saved.\n"
     )
 
     # --- Save DFs---
@@ -67,5 +70,3 @@ def filter_process():
     df_bad.to_parquet(config.OUTPUT_DIR / f"df_bad_{event}.parquet")
     df_yaxis_movement.to_parquet(config.OUTPUT_DIR / f"yaxis_movement_{event}.parquet")
 
-    print("\n--- Filter process finished ---")
-    print("df_clean and df_time saved")

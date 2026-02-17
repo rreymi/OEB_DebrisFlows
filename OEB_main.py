@@ -10,25 +10,29 @@
 # ------------------------------
 # Import Libraries
 # ------------------------------
+import logging
 from OEB_Filter_process import filter_process
 from OEB_Calculations import calculate_vel, calculate_gs
 from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
 from OEB_Model_performance import plot_detections
-
+from utils.data_utils import setup_logging
 
 # ------------------------------
 # Configuration / Parameters # import config --> CHECK CONFIG
 # ------------------------------
 import config
-config.START_FRAME = 39000
-config.END_FRAME = 41600
+config.START_FRAME = 32000
+config.END_FRAME = 34000
+
+
+setup_logging(config, log_name="Test", safe_conf = False)
 
 # ------------------------------
 # Run options
 # ------------------------------
 Run_Filter = True                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
-Run_Calculations = True                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
-Run_Plotting = True                    # Visualize data
+Run_Calculations = False                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
+Run_Plotting = False                    # Visualize data
 
 # ------------------------------
 # --- Calculations ---
@@ -41,11 +45,11 @@ run_calc_GS = True                     # lowess track grainsize
 
 # ------------------------------
 # --- Plotting ---
-plot_stats_per_frame = True             # Per Frame stats (Moving Average plots)
+plot_stats_per_frame = False             # Per Frame stats (Moving Average plots)
 plot_track_velocity = True              # Per Track stats (LOWESS Plot)
 plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
-plot_xy_mov_for_frame_sequence = True   # X - Y Track movement
-plot_cross_sec = True                   # Velocity cross-section plot
+plot_xy_mov_for_frame_sequence = False   # X - Y Track movement
+plot_cross_sec = False                   # Velocity cross-section plot
 plot_number_of_detections = True        # Plot number of Detections (YOLO, tracking and after  filtering)
 
 
@@ -74,7 +78,6 @@ def main():
             plot_detections()
 
 
-
-    print('all done')
+    logging.info("\n All done \n")
 if __name__ == "__main__":
     main()

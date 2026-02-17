@@ -15,8 +15,7 @@ END_FRAME = 0
 # --------------------------------------------
 # --- Output paths
 # --------------------------------------------
-BASE_OUTPUT_DIR = Path.cwd() / "output"
-OUTPUT_DIR = BASE_OUTPUT_DIR / EVENT
+OUTPUT_DIR = Path.cwd() / "output" / EVENT
 
 
 # --------------------------------------------
@@ -52,7 +51,7 @@ LOWESS_SEGMENT_LENGTH = 20
 # --------------------------------------------
 # --- Plot Parameters
 # --------------------------------------------
-FIG_SIZE = (14,7)
+FIG_SIZE = (16,7)
 YLIM_VELOCITY = (0, 5)
 YLIM_GRAINSIZE = (0, 1)
 

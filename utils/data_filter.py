@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import logging
 
 # Function for Filter step 1
 def filter_tracks(
@@ -36,11 +37,14 @@ def filter_tracks(
 
     # Debug / verbose output
     if verbose:
-        print(f"Total tracks: {total_tracks}")
-        print(f"Tracks removed by length filter: {total_tracks - mask_length.sum()}")
-        print(f"Tracks removed by velocity std filter: {mask_length.sum() - (mask_length & mask_std).sum()}")
-        print(f"Tracks removed by median velocity filter: {(mask_length & mask_std).sum() - len(valid_tracks)}")
-        print(f"Tracks remaining: {len(valid_tracks)}")
+        logging.info(" --- Filter Step 1\n"
+                     f"Tracks length: {len(valid_tracks)}\n"
+                     f"Total tracks: {total_tracks}\n"
+                     f"Tracks removed by length filter: {total_tracks - mask_length.sum()}\n"
+                     f"Tracks removed by velocity std filter: {mask_length.sum() - (mask_length & mask_std).sum()}\n"
+                     f"Tracks removed by median velocity filter: {(mask_length & mask_std).sum() - len(valid_tracks)}\n"
+                     f"Tracks remaining: {len(valid_tracks)}\n"
+                     )
 
     # Filter the dataframe
     df_filtered = df[df['track'].isin(valid_tracks)].reset_index(drop=True)
@@ -96,12 +100,12 @@ def filter_tracks_that_jump(df: pd.DataFrame, jump_threshold: float,
 
     # --- Print summary ---
     if verbose:
-        print("--- Jump Filter Summary ---")
-        print(f"Threshold: {jump_threshold}")
-        print(f"Total received: {df['track'].nunique()}")
-        print(f"Good tracks: {len(good_tracks)}")
-        print(f"Bad tracks : {len(bad_tracks)}")
-        print("-------------------------")
+        logging.info(" --- Filter Step 2 - Jump Filter\n"
+                     f"Threshold: {jump_threshold}\n"
+                     f"Total received: {df['track'].nunique()}\n"
+                     f"Good tracks: {len(good_tracks)}\n"
+                     f"Bad tracks : {len(bad_tracks)}\n"
+                     )
 
     # --- Return ---
     if return_bad_df:
@@ -168,41 +172,16 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
     total_tracks = df[track_column].nunique()
     kept_tracks = len(moving_tracks)
     removed_tracks = total_tracks - kept_tracks
-    print('--- Summary Filter y Axis Movement ---')
-    print(f"Tracks received: {total_tracks}")
-    print(f"Tracks kept (movement > {yaxis_min_length}): {kept_tracks}")
-    print(f"Tracks removed: {removed_tracks}")
-    print("-------------------------")
+
+    logging.info(' --- Filter Step 3 - Y-Axis Movement ---\n'
+    f"Tracks received: {total_tracks}\n"
+    f"Tracks kept (movement > {yaxis_min_length}): {kept_tracks}\n"
+    f"Tracks removed: {removed_tracks}\n"
+    )
 
     return filtered_df, df_yaxis_movement
 
 # Function for Filter step 4
-def filter_rows_nonzero_velocity(
-    df: pd.DataFrame,
-    verbose: bool = True
-) -> pd.DataFrame:
-    """
-    Remove rows with zero velocity.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe containing a 'velocity' column.
-    verbose : bool, optional
-        Print debug information, by default True.
-    """
-    mask = df['velocity'] != 0
-
-    if verbose:
-        total = len(mask)
-        kept = int(mask.sum())
-        removed = total - kept
-        print(f"Removed {removed} rows with velocity == 0")
-        print(f"Kept {kept} rows")
-
-    return df.loc[mask].reset_index(drop=True)
-
-
 def replace_zero_velocity_with_nan(
     df: pd.DataFrame
 ) -> pd.DataFrame:
@@ -210,10 +189,6 @@ def replace_zero_velocity_with_nan(
     Replace zero velocities with NaN while keeping all rows.
     """
     mask = df["velocity"] == 0
-    n_replaced = int(mask.sum())
-
     df.loc[mask, "velocity"] = np.nan
-
-    print(f"Replaced {n_replaced} zero velocities with NaN")
 
     return df

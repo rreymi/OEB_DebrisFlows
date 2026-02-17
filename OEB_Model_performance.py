@@ -1,5 +1,6 @@
 # Script to quickly visualize and check the performance of the obj detection model
 
+import logging
 import config
 import pandas as pd
 from pathlib import Path
@@ -26,13 +27,13 @@ def plot_detections() -> None:
 
     # Check if file exists
     if output_file.exists():
-        print(f"File already exists: {output_file}. Loading existing DataFrame.")
+        logging.info(f"File already exists: {output_file}. Loading existing DataFrame.")
         df = pd.read_parquet(output_file)
     else:
-        print(f"File not found. Computing detection counts for event {event}...")
+        logging.info(f"File not found. Computing detection counts for event {event}...")
         df = get_detection_counts_yolo(event, base_dir)                                     # calc detections per frame
         df.to_parquet(output_file)
-        print(f"Saved DataFrame to {output_file}")
+        logging.info(f"Saved DataFrame to {output_file}")
 
 
 

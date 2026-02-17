@@ -5,6 +5,48 @@ import pandas as pd
 from pathlib import Path
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from typing import Tuple
+import logging
+from datetime import datetime
+import sys
+import inspect
+
+def log_config(config_module):
+    logging.info("----- CONFIGURATION START -----")
+
+    for name, value in inspect.getmembers(config_module):
+        # Only log ALL CAPS variables (convention for constants)
+        if name.isupper():
+            logging.info(f"{name} = {value}")
+
+    logging.info("----- CONFIGURATION END -----\n")
+
+def setup_logging(config, log_name: str = "TEST", safe_conf:bool = True) -> None:
+    """
+    Set up logging to a file (with timestamp) and console output
+    """
+    if safe_conf:
+        # Create log directory if it doesn't exist
+        log_path = Path(config.OUTPUT_DIR)
+        log_path.mkdir(exist_ok=True)
+
+        # Timestamped log file
+        timestamp = datetime.now().strftime("%Y%m%d")
+        log_file = log_path / f"{log_name}_{timestamp}.log"
+
+        # Logging configuration
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            handlers=[
+                logging.FileHandler(log_file, mode='w'),  # <-- overwrite each run
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+
+        logging.info(f"Logging initialized. Log file: {log_file}\n"
+                     f"Event: {config.EVENT}\n")
+        log_config(config)
+
 
 
 def load_and_merge_event_data(event: str) -> pd.DataFrame:

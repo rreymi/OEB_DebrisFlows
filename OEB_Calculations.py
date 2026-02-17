@@ -1,3 +1,4 @@
+import logging
 import config
 import pandas as pd
 
@@ -39,11 +40,11 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
             gap_threshold=config.GAP_THRESHOLD
         )
 
-        # Remove frames with very few detections
+        '''# Remove frames with very few detections
         df_mova = clean_frames_low_detections(
             df_mova,
             min_num_detections=config.MIN_NUM_DETECTIONS
-        )
+        )'''
 
         # Save moving-average CSV
         df_mova.to_csv(output_dir / f"df_mova_{event}.csv", index=False)
@@ -53,7 +54,7 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
         df_piv = load_piv_data(event=event)
         df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)
         df_piv_mova.to_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-        print(f"\nStatistics calculation per FRAME complete for event {event}.")
+        logging.info(f"\nStatistics calculation per FRAME complete for event {event}.")
 
 
     if run_calc_per_track:
@@ -69,7 +70,7 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
         df_velocities_lowess.to_parquet(
             output_dir / f"df_velocities_lowess_{event}.parquet"
         )
-        print(f"\nStatistics calculation per TRACK complete for event {event}.")
+        logging.info(f"\nStatistics calculation per TRACK complete for event {event}.")
 
 
 
@@ -92,6 +93,6 @@ def calculate_gs() -> None:
     df_grainsize_lowess.to_parquet(
         output_dir / f"df_grainsize_lowess_{event}.parquet"
     )
-    print(f"\nGrain Size calculation per TRACK complete for event {event}.")
+    logging.info(f"\nGrain Size calculation per TRACK complete for event {event}.")
 
 

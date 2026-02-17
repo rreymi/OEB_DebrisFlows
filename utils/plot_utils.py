@@ -10,17 +10,20 @@ from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
 from scipy.interpolate import interp1d
 import matplotlib.cm as cm
+import matplotlib.patches as mpatches
+import os
 
 
 
-# --- Helper Functions for all plots
+# --- Helper Functions for all plots - basics
 def style_main_axis(
     ax: plt.Axes,
     xlabel: str = 'Frame Number',
     ylabel: str = '',
     xlim: tuple | None = None,
     ylim: tuple | None = None,
-    fontsize: int = 16,
+    fontsize: int = 14,
+    add_grid: bool = True,
 ):
     ax.set_xlabel(xlabel, fontsize=fontsize)
     ax.set_ylabel(ylabel, fontsize=fontsize)
@@ -30,8 +33,9 @@ def style_main_axis(
     if ylim is not None:
         ax.set_ylim(*ylim)
 
-    ax.tick_params(axis="both", labelsize=fontsize - 1, pad=8, length=4, width=1)
-    ax.grid(True, linestyle="-", alpha=0.4)
+    ax.tick_params(axis="both", labelsize=fontsize, pad=6, length=4, width=1)
+    if add_grid:
+        ax.grid(True, linestyle="-", alpha=0.4)
 
 
 def make_frame_to_mmss_formatter(df_time: pd.DataFrame | None):
@@ -76,7 +80,7 @@ def add_time_top_axis(
     ax: plt.Axes,
     df_time: pd.DataFrame | None,
     x_label: str = "Time [MM:SS]",
-    fontsize: int = 16,
+    fontsize: int = 14,
 ):
     ax_top = ax.twiny()
     ax_top.set_xlim(ax.get_xlim())
@@ -86,7 +90,7 @@ def add_time_top_axis(
 
     ax_top.xaxis.set_major_locator(ticker.AutoLocator())
     ax_top.xaxis.set_major_formatter(ticker.FuncFormatter(formatter))
-    ax_top.tick_params(axis="x", labelsize=fontsize - 1, pad=8, length=4, width=1)
+    ax_top.tick_params(axis="x", labelsize=fontsize, pad=4, length=4, width=1)
 
     return ax_top
 
@@ -102,15 +106,146 @@ def add_standard_legend(
         loc=loc,
         facecolor="white",
         edgecolor="black",
+        framealpha=1,
     )
 
     return leg
 
 
-def save_plot(fig, fig_name, output_dir):
+def save_plot(fig, fig_name, output_dir, start_frame, end_frame):
+
+    # create folder for frame rang
+    folder_name = f'{start_frame}_{end_frame}'
+    # create folder
+    output_dir_for_plots = Path(output_dir) / folder_name
+    os.makedirs(output_dir_for_plots, exist_ok=True)
+
+    output_path = Path(output_dir_for_plots) / fig_name
     fig.tight_layout()
-    output_path = Path(output_dir) / fig_name
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+# --- Helper for all - surge types and classifications
+
+def add_surge_background(
+    ax,
+    event,
+    start_frame,
+    end_frame,
+    base_dir="input_data",
+    alpha=0.2,
+    boundary_linewidth = 1.2,
+    boundary_alpha = 0.4,
+    legend_loc="upper left",
+    fontsize: int = 14,
+):
+    """
+    Adds surge background shading and a second legend.
+    Only surges overlapping the visible frame range are shown.
+    """
+
+    # --- Load surge file ---
+    event_dir = Path(base_dir) / event
+    df_surges = pd.read_csv(
+        event_dir / f"surge_classification_{event}.csv",
+        sep=";"
+    )
+
+    # --- Mapping ---
+    surge_labels = {
+        1: "Granular",
+        2: "Low viscosity",
+        3: "Mushy",
+        4: "Not classified"
+    }
+
+    surge_colors = {
+        "Granular": "sandybrown",
+        "Low viscosity": "skyblue",
+        "Mushy": "goldenrod",
+        "Not classified": "lightgray"
+    }
+
+    df_surges["surge_label"] = df_surges["components"].map(surge_labels)
+
+    # --------------------------------------------------
+    # Filter to visible frame range
+    # --------------------------------------------------
+    df_visible = df_surges[
+        (df_surges["frame_end"] >= start_frame) &
+        (df_surges["frame_start"] <= end_frame)
+    ].copy()
+
+    if df_visible.empty:
+        return  # nothing to plot
+
+    # --------------------------------------------------
+    # Plot background spans (clipped to window)
+    # --------------------------------------------------
+    for _, row in df_visible.iterrows():
+
+        span_start = max(row["frame_start"], start_frame)
+        span_end = min(row["frame_end"], end_frame)
+
+        color = surge_colors[row["surge_label"]]
+
+        ax.axvspan(
+            span_start,
+            span_end,
+            color=surge_colors[row["surge_label"]],
+            alpha=alpha,
+            zorder=0
+        )
+        # --- Boundary lines (more visible) ---
+        ax.axvline(
+            span_start,
+            color=color,
+            linewidth=boundary_linewidth,
+            alpha=boundary_alpha,
+            zorder=0
+        )
+
+        ax.axvline(
+            span_end,
+            color=color,
+            linewidth=boundary_linewidth,
+            alpha=boundary_alpha,
+            zorder=0
+        )
+
+        # --------------------------------------------------
+        # Create second legend (only visible surge types)
+        # --------------------------------------------------
+        visible_labels = df_visible["surge_label"].unique()
+
+        surge_patches = [
+            mpatches.Patch(
+                color=surge_colors[label],
+                label=label,
+                alpha=alpha,
+            )
+            for label in visible_labels
+        ]
+
+        # Store original legend (if existing)
+        original_legend = ax.get_legend()
+
+        # Add surge legend
+        leg = ax.legend(
+            handles=surge_patches,
+            title="Component Classes",
+            loc=legend_loc,
+            edgecolor="black",
+            facecolor="white",
+            framealpha = 0.8,
+            frameon=True,
+            fontsize=fontsize,
+        )
+        # Set title font size
+        leg.get_title().set_fontsize(fontsize)
+
+        # Re-add original legend (so it stays visible)
+        if original_legend is not None:
+            ax.add_artist(original_legend)
 
 
 # --- Plot Functions for data per FRAME
@@ -205,7 +340,7 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, config,
 
     # Save figure
     fig_name = f"{statistic.capitalize()}_{plot_variable}_per_frame_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
 
 
 def plot_piv_and_mean_velocity_per_frame(
@@ -276,7 +411,7 @@ def plot_piv_and_mean_velocity_per_frame(
 
     # save plot
     fig_name = f"PIV_and_mean_Velocity_per_frame_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
 
 
 # --- Function for plotting per Track data ---
@@ -382,7 +517,7 @@ def plot_xy_mov_tracks_color_vel(
 
 
     fig_name = f'xy_track_path_mov_colored_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg'
-    save_plot(fig,fig_name,config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 # --- Per Track Velocity smoothed with LOWESS / Surges segmented
@@ -391,6 +526,9 @@ def plot_track_velocities_lowess(
     df_lowess: pd.DataFrame,
     df_piv_mova: pd.DataFrame,
     df_time: pd.DataFrame, config,
+    legend_loc: str = "upper right",
+    add_surge_classes: bool = True,
+    legend_loc_surge: str = "upper left",
 ) -> None:
 
     # Config Values
@@ -460,17 +598,23 @@ def plot_track_velocities_lowess(
                     ylabel="Velocity (m/s)",
                     xlim=(start_frame, end_frame),
                     ylim=config.YLIM_VELOCITY,
-                    fontsize=16)
+                    fontsize=16,
+                    add_grid=False)
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time)
+    add_time_top_axis(ax, df_time, fontsize= 16)
 
     # --- Legend
-    add_standard_legend(ax)
+    add_standard_legend(ax, loc=legend_loc)
 
+    if add_surge_classes:
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
+
+        fig_name = f"PIV_and_{stat_type}_Track_velocities_and_surge_type_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    else:
+        fig_name = f"PIV_and_{stat_type}_Track_velocities_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
     # --- Save
-    fig_name = f"PIV_and_{stat_type}_Track_velocities_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
 
 
 # Per Track Grainsize
@@ -528,7 +672,7 @@ def plot_track_grainsize_lowess(
 
     # --- Save
     fig_name = f"Track_grainsize_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 # --- bubble plot ---
@@ -536,18 +680,18 @@ def plot_track_grainsize_bubble(
     df_per_track_grainsize: pd.DataFrame,
     df_per_track_velocities: pd.DataFrame,
     df_velocities_lowess: pd.DataFrame,
-    df_time: pd.DataFrame, config
+    df_time: pd.DataFrame, config,
+    add_surge_classes: bool = True
 ) -> None:
 
     # Config Values
     event = config.EVENT
-    output_dir = config.OUTPUT_DIR
     start_frame = config.START_FRAME
     end_frame = config.END_FRAME
     ylim_velocity = config.YLIM_VELOCITY
 
     frame_bin = 10  # BIN WIDTH (frames)
-    fig, ax = plt.subplots(figsize=(16, 7))
+    fig, ax = plt.subplots(figsize=(18, 8))
 
 
     # ------------------------------------------------------------------
@@ -658,17 +802,24 @@ def plot_track_grainsize_bubble(
                     xlim=(start_frame, end_frame),
                     ylabel= "Velocity (m/s)",
                     ylim= ylim_velocity,
-                    fontsize= 14)
+                    fontsize= 14,
+                    add_grid=False)
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time)
+    add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
     add_standard_legend(ax, fontsize= 14, loc='best')
 
-    # save
-    fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, output_dir)
+    if add_surge_classes:
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc="upper left")
+
+        fig_name = f"GrainSize_bubble_plot_and_surge_type_{event}_{start_frame}_{end_frame}.jpeg"
+    else:
+        fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
+
+    # Save plot
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 # --- Cross-section Plots
@@ -737,7 +888,7 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
     # save
     fig_name = f"Cross_section_velocity_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 
@@ -788,7 +939,7 @@ def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
 
     # save
     fig_name = f"Detections_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 
@@ -849,7 +1000,7 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
 
     # save
     fig_name = f"Detections_model_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 
@@ -928,4 +1079,4 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
 
     # save
     fig_name = f"Detections_all_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
-    save_plot(fig, fig_name, config.OUTPUT_DIR)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)

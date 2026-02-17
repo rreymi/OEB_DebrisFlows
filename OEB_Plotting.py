@@ -1,3 +1,4 @@
+import logging
 import config
 import pandas as pd
 
@@ -54,7 +55,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
         plot_piv_and_mean_velocity_per_frame(df_piv_mova, df_mova, df_time, config)
 
 
-        print("--- Per FRAME plots done --- \n")
+        logging.info("--- Per FRAME plots done --- \n")
 
     if  plot_stats_per_track:       # ---  Per Track Plots
 
@@ -63,9 +64,12 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
         df_velocities_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_velocities_lowess_{config.EVENT}.parquet")
 
         # --- Plot Track Velocities
-        plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, df_time, config)
+        plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, df_time, config,
+                                     legend_loc = "upper right",
+                                     add_surge_classes = True,
+                                     legend_loc_surge = "upper left",)
 
-        print("--- LOWESS Track Velocity plotted --- \n")
+        logging.info("--- LOWESS Track Velocity plotted --- \n")
 
 
     if plot_xy_mov_for_frame_sequence:
@@ -90,14 +94,14 @@ def plot_grainsize() -> None:
     df_per_track_velocities = pd.read_parquet(config.OUTPUT_DIR/ f"df_per_track_velocities_{config.EVENT}.parquet")
     df_velocities_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_velocities_lowess_{config.EVENT}.parquet")
 
-    # --- GRAIN SIZE per Track
+    '''# --- GRAIN SIZE per Track
     plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_time, config)
-    print("--- Lowess Track Grain size plotted --- \n")
+    logging.info("--- Lowess Track Grain size plotted --- \n")'''
 
     # --- BUBBLE plot
     plot_track_grainsize_bubble(df_per_track_grainsize, df_per_track_velocities,
                                 df_velocities_lowess, df_time, config)
-    print("--- Bubble Track Grain size plotted --- \n")
+    logging.info("--- Bubble Track Grain size plotted --- \n")
 
 
 
@@ -108,4 +112,4 @@ def plot_cross_section() -> None:
     df_clean = pd.read_parquet(config.OUTPUT_DIR/ f"df_clean_{config.EVENT}.parquet")
 
     plot_cross_section_velocity(df_clean, config)
-    print("--- Velocity cross-section plotted --- \n")
+    logging.info("--- Velocity cross-section plotted --- \n")

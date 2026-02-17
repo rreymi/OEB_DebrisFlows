@@ -132,9 +132,9 @@ def add_surge_background(
     start_frame,
     end_frame,
     base_dir="input_data",
-    alpha=0.2,
-    boundary_linewidth = 1.2,
-    boundary_alpha = 0.4,
+    alpha=0.15,
+    boundary_linewidth = 1,
+    boundary_alpha = 0.3,
     legend_loc="upper left",
     fontsize: int = 14,
 ):
@@ -161,7 +161,7 @@ def add_surge_background(
     surge_colors = {
         "Granular": "sandybrown",
         "Low viscosity": "skyblue",
-        "Mushy": "goldenrod",
+        "Mushy": "yellowgreen",
         "Not classified": "lightgray"
     }
 
@@ -396,7 +396,7 @@ def plot_piv_and_mean_velocity_per_frame(
                     fontsize=16)
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time)
+    add_time_top_axis(ax, df_time, fontsize= 14)
 
 
     leg = ax.legend(
@@ -425,11 +425,6 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
     """
     Plot all tracks from df whose track ID is in bad_tracks.
     """
-    # Config Values
-    output_dir = config.OUTPUT_DIR
-    title = f'xy_track_path_mov_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}'
-
-
     fig, ax = plt.subplots(figsize=(8, 8))
 
     # iterate over track IDs
@@ -447,10 +442,8 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
     ax.grid(True, linestyle='--', alpha=0.3)
 
     # Save figure
-    fig_name = f"{title}.jpeg"
-    output_path = Path(output_dir) / fig_name
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
+    fig_name = f'xy_track_path_mov_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}'
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 def plot_xy_mov_tracks_color_vel(
@@ -602,7 +595,7 @@ def plot_track_velocities_lowess(
                     add_grid=False)
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time, fontsize= 16)
+    add_time_top_axis(ax, df_time, fontsize= 14)
 
     # --- Legend
     add_standard_legend(ax, loc=legend_loc)
@@ -681,7 +674,9 @@ def plot_track_grainsize_bubble(
     df_per_track_velocities: pd.DataFrame,
     df_velocities_lowess: pd.DataFrame,
     df_time: pd.DataFrame, config,
-    add_surge_classes: bool = True
+    legend_loc: str = "upper right",
+    add_surge_classes: bool = True,
+    legend_loc_surge: str = "upper left",
 ) -> None:
 
     # Config Values
@@ -691,7 +686,7 @@ def plot_track_grainsize_bubble(
     ylim_velocity = config.YLIM_VELOCITY
 
     frame_bin = 10  # BIN WIDTH (frames)
-    fig, ax = plt.subplots(figsize=(18, 8))
+    fig, ax = plt.subplots(figsize=(18, 7))
 
 
     # ------------------------------------------------------------------
@@ -792,7 +787,7 @@ def plot_track_grainsize_bubble(
         )
 
     # --- Log ticks, normal numbers ---
-    cbar = plt.colorbar(sc, ax=ax)
+    cbar = plt.colorbar(sc, ax=ax, pad = 0.02)
     cbar.set_label("Grain Size (m)", fontsize=14)
     cbar.ax.tick_params(labelsize=12, width=1.2, length=6)
 
@@ -802,17 +797,17 @@ def plot_track_grainsize_bubble(
                     xlim=(start_frame, end_frame),
                     ylabel= "Velocity (m/s)",
                     ylim= ylim_velocity,
-                    fontsize= 14,
+                    fontsize= 16,
                     add_grid=False)
 
     # --- TOP axis (time in MM:SS)
     add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
-    add_standard_legend(ax, fontsize= 14, loc='best')
+    add_standard_legend(ax, fontsize= 14, loc=legend_loc)
 
     if add_surge_classes:
-        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc="upper left")
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
 
         fig_name = f"GrainSize_bubble_plot_and_surge_type_{event}_{start_frame}_{end_frame}.jpeg"
     else:
@@ -929,10 +924,11 @@ def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
         ylabel='Number of Detections',
         xlim= (start_frame, end_frame),
         ylim= (0, df_counts['unique_tracks_per_frame'].max() * 1.1),
+        fontsize= 16
     )
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time)
+    add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
     add_standard_legend(ax, fontsize=14, loc='best')
@@ -990,10 +986,11 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
         ylabel='Number of Detections',
         xlim= (start_frame, end_frame),
         ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
+        fontsize= 16
     )
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time)
+    add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
     add_standard_legend(ax, fontsize=14, loc='best')
@@ -1004,7 +1001,11 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
 
 
 
-def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_raw, df_time, config) -> None:
+def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_raw, df_time, config,
+                                                 legend_loc: str = "upper right",
+                                                 add_surge_classes: bool = True,
+                                                 legend_loc_surge: str = "upper left",
+                                                 ) -> None:
 
     # Config Values
     start_frame = config.START_FRAME
@@ -1069,13 +1070,16 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
         ylabel='Number of Detections',
         xlim= (start_frame, end_frame),
         ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
+        fontsize= 16
     )
+    # --- Legend
+    add_standard_legend(ax, fontsize=14, loc=legend_loc)
+
+    if add_surge_classes:
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
 
     # --- TOP axis (time in MM:SS)
     add_time_top_axis(ax, df_time)
-
-    # --- Legend
-    add_standard_legend(ax, fontsize=14, loc='best')
 
     # save
     fig_name = f"Detections_all_{config.EVENT}_{start_frame}_{end_frame}.jpeg"

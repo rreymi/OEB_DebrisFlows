@@ -6,13 +6,14 @@ import pandas as pd
 from pathlib import Path
 
 from utils.model_performance_utils import (
-    get_detection_counts_yolo, compute_detection_stats
+    get_detection_counts_yolo
 )
 
 from utils.plot_utils import (
     plot_number_of_detections,
     plot_number_of_detections_yolo8,
-    plot_number_of_detections_yolo8_and_tracking
+    plot_number_of_detections_yolo8_and_tracking,
+    plot_number_of_detections_tracked_and_filtered
 
 )
 
@@ -45,8 +46,17 @@ def plot_detections() -> None:
 
     plot_number_of_detections_yolo8(df_clean=df_clean, df_counts_yolo=df, df_time=df_time, config=config)
 
-    plot_number_of_detections_yolo8_and_tracking(df_clean=df_clean, df_counts_yolo=df,df_raw=df_raw, df_time=df_time, config=config)
+    plot_number_of_detections_yolo8_and_tracking(df_clean=df_clean, df_counts_yolo=df,df_raw=df_raw, df_time=df_time, config=config,
+                                                 legend_loc="upper right",
+                                                 add_surge_classes=False,
+                                                 legend_loc_surge="upper left",
+    )
 
-    print("--- Detections per FRAME plots done --- \n")
+    plot_number_of_detections_tracked_and_filtered(df_clean=df_clean,df_raw=df_raw, df_time=df_time, config=config,
+                                                   legend_loc="upper right",
+                                                   add_surge_classes=False,
+                                                   legend_loc_surge="upper left",
+                                                   )
 
-    # stats_df = compute_detection_stats(df)
+    logging.info("--- Detections per FRAME plots done --- \n")
+

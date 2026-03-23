@@ -3,15 +3,20 @@
     <words>
       <w>daten</w>
       <w>dxyz</w>
+      <w>fontsize</w>
       <w>isna</w>
       <w>labelsize</w>
+      <w>lightgray</w>
       <w>masterarbeit</w>
       <w>mmss</w>
       <w>mpatches</w>
       <w>nunique</w>
       <w>renner</w>
+      <w>sandybrown</w>
+      <w>skyblue</w>
       <w>xlabel</w>
       <w>xlim</w>
+      <w>yellowgreen</w>
       <w>ylabel</w>
       <w>ylim</w>
       <w>ylimit</w>

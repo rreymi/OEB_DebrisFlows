@@ -12,6 +12,7 @@ from utils.plot_utils import (
     plot_track_grainsize_bubble,
     plot_cross_section_velocity,
     plot_number_of_detections,
+    plot_track_vel_and_grainsize
 
 )
 
@@ -55,7 +56,7 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
         plot_piv_and_mean_velocity_per_frame(df_piv_mova, df_mova, df_time, config)
 
 
-        logging.info("--- Per FRAME plots done --- \n")
+        print("--- Per FRAME plots done --- \n")
 
     if  plot_stats_per_track:       # ---  Per Track Plots
 
@@ -67,18 +68,23 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
         plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, df_time, config,
                                      legend_loc = "upper right",
                                      add_surge_classes = True,
-                                     legend_loc_surge = "upper left",)
+                                     legend_loc_surge = "upper left",
+                                     add_percentiles=False,
+                                     )
 
-        logging.info("--- LOWESS Track Velocity plotted --- \n")
+        print("--- LOWESS Track Velocity plotted --- \n")
 
 
     if plot_xy_mov_for_frame_sequence:
 
+        df_bad = pd.read_parquet(config.OUTPUT_DIR/ f"df_bad_{config.EVENT}.parquet")
+
+        df_bad_sequence = df_bad[df_bad['frame'].between(config.START_FRAME,config.END_FRAME)]
         df_clean_sequence = df_clean[df_clean['frame'].between(config.START_FRAME,config.END_FRAME)]
 
         # Track path raw
-        plot_xy_mov_tracks(df_clean_sequence, config)
-
+        plot_xy_mov_tracks(df_clean_sequence, config, title='clean')
+        plot_xy_mov_tracks(df_bad_sequence, config, title='bad')
         # Colored by velocity
         plot_xy_mov_tracks_color_vel(df_clean_sequence, config)
         print("--- xy Plot of sequence done --- \n")
@@ -93,15 +99,28 @@ def plot_grainsize() -> None:
     df_grainsize_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_grainsize_lowess_{config.EVENT}.parquet")
     df_per_track_velocities = pd.read_parquet(config.OUTPUT_DIR/ f"df_per_track_velocities_{config.EVENT}.parquet")
     df_velocities_lowess = pd.read_parquet(config.OUTPUT_DIR/ f"df_velocities_lowess_{config.EVENT}.parquet")
+    df_piv_mova = pd.read_parquet(config.OUTPUT_DIR/ f"df_piv_mova_{config.EVENT}.parquet")
 
-    '''# --- GRAIN SIZE per Track
+
+    # --- GRAIN SIZE per Track
     plot_track_grainsize_lowess(df_per_track_grainsize, df_grainsize_lowess, df_time, config)
-    logging.info("--- Lowess Track Grain size plotted --- \n")'''
+    print("--- Lowess Track Grain size plotted --- \n")
 
     # --- BUBBLE plot
     plot_track_grainsize_bubble(df_per_track_grainsize, df_per_track_velocities,
-                                df_velocities_lowess, df_time, config)
-    logging.info("--- Bubble Track Grain size plotted --- \n")
+                                df_velocities_lowess, df_time, config,
+                                legend_loc="upper right",
+                                add_surge_classes=True,
+                                legend_loc_surge="upper left",
+                                )
+    print("--- Bubble Track Grain size plotted --- \n")
+
+
+    plot_track_vel_and_grainsize(df_per_track_grainsize, df_per_track_velocities, df_velocities_lowess,
+                                df_piv_mova, df_time, config,
+                                legend_loc="upper right",
+                                add_surge_classes=True,
+                                legend_loc_surge="upper left",)
 
 
 
@@ -112,4 +131,4 @@ def plot_cross_section() -> None:
     df_clean = pd.read_parquet(config.OUTPUT_DIR/ f"df_clean_{config.EVENT}.parquet")
 
     plot_cross_section_velocity(df_clean, config)
-    logging.info("--- Velocity cross-section plotted --- \n")
+    print("--- Velocity cross-section plotted --- \n")

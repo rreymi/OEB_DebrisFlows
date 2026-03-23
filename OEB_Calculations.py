@@ -54,7 +54,7 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
         df_piv = load_piv_data(event=event)
         df_piv_mova = merge_piv_and_tracking(df_piv, df_mova)
         df_piv_mova.to_parquet(output_dir / f"df_piv_mova_{event}.parquet")
-        logging.info(f"\nStatistics calculation per FRAME complete for event {event}.")
+        print(f"\nStatistics calculation per FRAME complete for event {event}.")
 
 
     if run_calc_per_track:
@@ -70,7 +70,7 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
         df_velocities_lowess.to_parquet(
             output_dir / f"df_velocities_lowess_{event}.parquet"
         )
-        logging.info(f"\nStatistics calculation per TRACK complete for event {event}.")
+        print(f"\nStatistics calculation per TRACK complete for event {event}.")
 
 
 
@@ -79,9 +79,6 @@ def calculate_gs() -> None:
     event = config.EVENT
     output_dir = config.OUTPUT_DIR
 
-    # -------------------------------------------------------------------------
-    # Load Clean DataFrame
-    # -------------------------------------------------------------------------
     df_clean = pd.read_parquet(output_dir / f"df_clean_{event}.parquet")
 
     df_per_track_grainsize, df_grainsize_lowess = compute_track_grainsize(df_clean, config)
@@ -93,6 +90,6 @@ def calculate_gs() -> None:
     df_grainsize_lowess.to_parquet(
         output_dir / f"df_grainsize_lowess_{event}.parquet"
     )
-    logging.info(f"\nGrain Size calculation per TRACK complete for event {event}.")
+    print(f"\nGrain Size calculation per TRACK complete for event {event}.")
 
 

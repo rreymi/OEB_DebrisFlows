@@ -20,11 +20,11 @@ def log_config(config_module):
 
     logging.info("----- CONFIGURATION END -----\n")
 
-def setup_logging(config, log_name: str = "TEST", safe_conf:bool = True) -> None:
+def setup_logging(config, log_name: str = "TEST", save_conf:bool = True) -> None:
     """
     Set up logging to a file (with timestamp) and console output
     """
-    if safe_conf:
+    if save_conf:
         # Create log directory if it doesn't exist
         log_path = Path(config.OUTPUT_DIR)
         log_path.mkdir(exist_ok=True)
@@ -93,7 +93,7 @@ def compute_mean_median_per_frame(
     """
 
     if columns is None:
-        columns = ['frame', 'velocity', 'grainsize', 'time']
+        columns = ['frame', 'track', 'velocity', 'grainsize', 'time']
 
     # Reduce size by keeping only essential columns
     df = df_raw[columns].copy()
@@ -279,8 +279,12 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
-    # 1) Reduce dataframe
+    '''# 1) Reduce dataframe
     columns = ["frame", "track", "velocity", "grainsize", "time"]
+    df = df_filtered[columns].copy()'''
+
+    # 1) Reduce dataframe
+    columns = ["frame", "track", "velocity_median_filtered", "grainsize_median_filtered", "time"]
     df = df_filtered[columns].copy()
 
     # Compute one representative frame and summary statistics per track
@@ -288,8 +292,8 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
     track_velocities = (
         df.groupby("track")
         .agg(
-            mean_track_velocity=("velocity", "mean"),
-            median_track_velocity=("velocity", "median")
+            mean_track_velocity=("velocity_median_filtered", "mean"),
+            median_track_velocity=("velocity_median_filtered", "median")
         )
     )
 
@@ -365,9 +369,22 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
             columns=["frame", "lowess_median_track_velocity"]
         )
 
+        # ---- Percentiles per frame
+        # compute p5, p50, p95 of mean_track_velocity per frame
+        df_percentiles = (
+            seg.groupby("center_frame")["mean_track_velocity"]
+            .quantile([0.05,0.25,0.5,0.75,0.95])
+            .unstack()
+            .rename(columns={0.05: "p5",0.25: "p25",0.5: "p50", 0.75: "p75", 0.95: "p95"})
+            .reset_index()
+            .rename(columns={"center_frame": "frame"})
+        )
+
+
         df_segment = (
             df_lowess_mean
             .merge(df_lowess_median, on="frame", how="outer")
+            .merge(df_percentiles, on="frame", how="outer")
         )
 
         df_segment["segment"] = seg_id
@@ -381,6 +398,7 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
         df_velocities_lowess = (
             pd.concat(lowess_results)
             .sort_values("frame")
+            .drop_duplicates(subset="frame", keep="first")
             .reset_index(drop=True)
         )
     else:
@@ -400,7 +418,7 @@ def compute_track_grainsize(
         )
 
     # Reduce size by keeping only essential columns
-    cols = ['frame', 'track', 'velocity', 'grainsize', 'bb_width', "bb_center_lidar_x", "bb_center_lidar_y",
+    cols = ['frame', 'track','grainsize_median_filtered', 'bb_width', "bb_center_lidar_x", "bb_center_lidar_y",
             "bb_center_lidar_z", 'time']
     df = df_filtered[cols]
     df = df.sort_values(["track", "frame"])
@@ -427,8 +445,8 @@ def compute_track_grainsize(
         df.groupby("track")
         .agg(
             # grain size
-            mean_track_grainsize=("grainsize", "mean"),
-            median_track_grainsize=("grainsize", "median"),
+            mean_track_grainsize=("grainsize_median_filtered", "mean"),
+            median_track_grainsize=("grainsize_median_filtered", "median"),
 
             # geometry
             mean_track_bb_width=("bb_width", "mean"),

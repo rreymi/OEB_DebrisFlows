@@ -12,10 +12,24 @@ from scipy.interpolate import interp1d
 import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import os
-
+import matplotlib.colors as colors
+from sympy.abc import alpha
 
 
 # --- Helper Functions for all plots - basics
+# def style_figure(fig):
+#     fig.subplots_adjust(
+#         left=0.06,
+#         right=0.97,
+#         bottom=0.1,
+#         top=0.92
+#     )
+#     # standard
+#     # left = 0.075,
+#     # right = 0.99,
+#     # bottom = 0.1,
+#     # top = 0.92
+
 def style_main_axis(
     ax: plt.Axes,
     xlabel: str = 'Frame Number',
@@ -97,7 +111,7 @@ def add_time_top_axis(
 
 def add_standard_legend(
     ax: plt.Axes,
-    fontsize: int = 14,
+    fontsize: int = 12,
     loc: str = "best",
 ):
     leg = ax.legend(
@@ -107,22 +121,27 @@ def add_standard_legend(
         facecolor="white",
         edgecolor="black",
         framealpha=1,
-    )
+     )
+
+    for lh in leg.legend_handles:
+        lh.set_alpha(1)
 
     return leg
 
 
-def save_plot(fig, fig_name, output_dir, start_frame, end_frame):
+def  save_plot(fig, fig_name, output_dir, start_frame, end_frame):
 
-    # create folder for frame rang
+    # create folder for frame range
     folder_name = f'{start_frame}_{end_frame}'
-    # create folder
     output_dir_for_plots = Path(output_dir) / folder_name
     os.makedirs(output_dir_for_plots, exist_ok=True)
 
     output_path = Path(output_dir_for_plots) / fig_name
+
     fig.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    plt.close(fig)
 
 # --- Helper for all - surge types and classifications
 
@@ -239,6 +258,7 @@ def add_surge_background(
             framealpha = 0.8,
             frameon=True,
             fontsize=fontsize,
+            bbox_to_anchor=(0, 1),
         )
         # Set title font size
         leg.get_title().set_fontsize(fontsize)
@@ -305,7 +325,7 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, config,
 
     # --- Start plotting
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
-
+     
     # Raw values
     ax.plot(
         df_mova['frame'],
@@ -330,7 +350,7 @@ def plot_variable_against_frame(df_mova: pd.DataFrame, config,
                     ylabel=f"{y_label}",
                     xlim= (start_frame, end_frame),
                     ylim=y_lim,
-                    fontsize= 16)
+                    )
 
     # --- TOP axis (time in MM:SS)
     add_time_top_axis(ax, df_time)
@@ -360,6 +380,7 @@ def plot_piv_and_mean_velocity_per_frame(
 
     # --- Create figure and axes ---
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
 
     # --- Plot velocities ---
     ax.plot(df_piv_mova['frame'],
@@ -392,17 +413,16 @@ def plot_piv_and_mean_velocity_per_frame(
                     xlabel="Frame Number",
                     ylabel="Velocity (m/s)",
                     xlim=(start_frame, end_frame),
-                    ylim=config.YLIM_VELOCITY,
-                    fontsize=16)
+                    ylim=config.YLIM_VELOCITY,)
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time, fontsize= 14)
+    add_time_top_axis(ax, df_time)
 
 
     leg = ax.legend(
         title="Velocities (m/s)",
-        title_fontproperties=font_manager.FontProperties(weight='bold', size=16),
-        fontsize=14,
+        title_fontproperties=font_manager.FontProperties(weight='bold', size=14),
+        fontsize=12,
         frameon=True,
         loc="best",
         facecolor="white",
@@ -418,6 +438,7 @@ def plot_piv_and_mean_velocity_per_frame(
 
 # --- XY Track path movement ---
 def plot_xy_mov_tracks(df: pd.DataFrame, config,
+                    title: str = None,
                     x_lim: tuple[float, float] = (-10, 6),
                     y_lim: tuple[float, float] = (-8, 8),
                     ):
@@ -442,7 +463,7 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
     ax.grid(True, linestyle='--', alpha=0.3)
 
     # Save figure
-    fig_name = f'xy_track_path_mov_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}'
+    fig_name = f'{title}_xy_track_path_mov_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}'
     save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
@@ -492,8 +513,7 @@ def plot_xy_mov_tracks_color_vel(
                     xlim=config.X_LIM_AXIS,
                     ylim=config.Y_LIM_AXIS,
                     xlabel = "X (LiDAR bbox center) (m)",
-                    ylabel="Y (LiDAR bbox center) (m)",
-                    fontsize= 14)
+                    ylabel="Y (LiDAR bbox center) (m)",)
 
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle="--", alpha=0.25)
@@ -505,8 +525,8 @@ def plot_xy_mov_tracks_color_vel(
     sm.set_array([])
 
     cbar = fig.colorbar(sm, ax=ax, shrink=0.8)
-    cbar.set_label("Velocity [m/s]", fontsize=13)
-    cbar.ax.tick_params(labelsize=12)
+    cbar.set_label("Velocity [m/s]", fontsize=14)
+    cbar.ax.tick_params(labelsize=14)
 
 
     fig_name = f'xy_track_path_mov_colored_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg'
@@ -522,6 +542,7 @@ def plot_track_velocities_lowess(
     legend_loc: str = "upper right",
     add_surge_classes: bool = True,
     legend_loc_surge: str = "upper left",
+    add_percentiles: bool = True,
 ) -> None:
 
     # Config Values
@@ -546,6 +567,7 @@ def plot_track_velocities_lowess(
 
     # --- Start plotting
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
 
     # Raw values
     ax.scatter(
@@ -554,12 +576,44 @@ def plot_track_velocities_lowess(
         label=label_raw,
         s=10,  # small marker
         c="0.7",  # light gray (neutral, print-safe)
-        alpha=0.45,  # faint visibility
+        alpha=0.4,  # faint visibility
         marker="o",  # clean filled marker
         edgecolors="none",  # no border
         linewidths=0,
         zorder=1,
         rasterized=True  # optional but recommended
+    )
+    if add_percentiles:
+
+        ax.fill_between(
+            df_lowess["frame"],
+            df_lowess["p5"],
+            df_lowess["p95"],
+            label="p5-p95",
+            color="0.8",
+            alpha=0.5,
+            zorder=2
+        )
+        ax.fill_between(
+            df_lowess["frame"],
+            df_lowess["p25"],
+            df_lowess["p75"],
+            label="p25-p75",
+            color="0.6",
+            alpha=0.6,
+            zorder=3
+        )
+
+
+    # PIV velocity for comparison
+    ax.plot(
+        df_piv_mova['frame'],
+        df_piv_mova['piv_vel_smoothed'],
+        label="PIV surface velocity smoothed",
+        color='tab:red',
+        linewidth=0.8,
+        alpha=0.7,
+        zorder=5
     )
 
     # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
@@ -569,21 +623,10 @@ def plot_track_velocities_lowess(
             seg[lowess_track_velocity],
             label=label_smooth if i == 0 else None,  # label only once
             color='tab:blue',
-            linewidth=2.2,
+            linewidth=1.5,
             alpha=1.0,
-            zorder=3
+            zorder=6
         )
-
-    # PIV velocity for comparison
-    ax.plot(
-        df_piv_mova['frame'],
-        df_piv_mova['piv_vel_smoothed'],
-        label="PIV surface velocity smoothed",
-        color='tab:red',
-        linewidth=1.3,
-        alpha=0.85,
-        zorder=2
-    )
 
     # --- X and Y Axis
     style_main_axis(ax,
@@ -591,18 +634,19 @@ def plot_track_velocities_lowess(
                     ylabel="Velocity (m/s)",
                     xlim=(start_frame, end_frame),
                     ylim=config.YLIM_VELOCITY,
-                    fontsize=16,
+                    fontsize=14,
                     add_grid=False)
 
     # --- TOP axis (time in MM:SS)
     add_time_top_axis(ax, df_time, fontsize= 14)
 
     # --- Legend
-    add_standard_legend(ax, loc=legend_loc)
+    add_standard_legend(ax, loc=legend_loc, fontsize=12)
 
     if add_surge_classes:
-        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
-
+        add_surge_background(ax, config.EVENT, start_frame, end_frame,
+                             legend_loc=legend_loc_surge,
+                             fontsize=12)
         fig_name = f"PIV_and_{stat_type}_Track_velocities_and_surge_type_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
     else:
         fig_name = f"PIV_and_{stat_type}_Track_velocities_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
@@ -685,9 +729,8 @@ def plot_track_grainsize_bubble(
     end_frame = config.END_FRAME
     ylim_velocity = config.YLIM_VELOCITY
 
-    frame_bin = 10  # BIN WIDTH (frames)
-    fig, ax = plt.subplots(figsize=(18, 7))
-
+    frame_bin = config.BIN_WIDTH_BUBBLE
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE_BUBBLE)
 
     # ------------------------------------------------------------------
     # Filter time window
@@ -719,7 +762,8 @@ def plot_track_grainsize_bubble(
         df_g.groupby("frame_bin")
         .agg(
             mean_track_grainsize=("mean_track_grainsize", "mean"),
-            n_tracks=("mean_track_grainsize", "size")
+            median_track_grainsize=("median_track_grainsize", "median"),
+            n_tracks=("median_track_grainsize", "size")
         )
         .reset_index()
     )
@@ -739,7 +783,7 @@ def plot_track_grainsize_bubble(
     # ------------------------------------------------------------------
     x = df_bin["frame_bin"]
     y = df_bin["mean_track_velocity"]
-    g = df_bin["mean_track_grainsize"]
+    g = df_bin["median_track_grainsize"]
 
     # ------------------------------------------------------------------
     # scaled marker sizes
@@ -755,7 +799,7 @@ def plot_track_grainsize_bubble(
     # g_log = np.log10(g + 1e-6)                        # log scaled grain size
     g_norm = (g - g.min()) / (g.max() - g.min())        # normalize grain sizes from 0 to 1, for scaling
     v_min = g.min()                                     # Compute min and percentile
-    v_max = float(np.percentile(g, 98))              # percentile
+    v_max = float(np.percentile(g, 1))              # percentile
 
     # ------------------------------------------------------------------
     # Plots
@@ -781,8 +825,8 @@ def plot_track_grainsize_bubble(
             seg["lowess_mean_track_velocity"],
             label="Smoothed track velocities (LOWESS)" if i == 0 else None,  # label only once
             c="tab:grey",
-            linewidth=2.2,
-            alpha=0.80,
+            linewidth=2,
+            alpha=0.90,
             zorder=2
         )
 
@@ -797,17 +841,17 @@ def plot_track_grainsize_bubble(
                     xlim=(start_frame, end_frame),
                     ylabel= "Velocity (m/s)",
                     ylim= ylim_velocity,
-                    fontsize= 16,
+                    fontsize= 14,
                     add_grid=False)
 
     # --- TOP axis (time in MM:SS)
     add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
-    add_standard_legend(ax, fontsize= 14, loc=legend_loc)
+    add_standard_legend(ax, fontsize= 12, loc=legend_loc)
 
     if add_surge_classes:
-        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge, fontsize=12)
 
         fig_name = f"GrainSize_bubble_plot_and_surge_type_{event}_{start_frame}_{end_frame}.jpeg"
     else:
@@ -815,6 +859,105 @@ def plot_track_grainsize_bubble(
 
     # Save plot
     save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
+
+# --- Track Vel plot - GS scaled
+def plot_track_vel_and_grainsize(
+    df_per_track_grainsize: pd.DataFrame,
+    df_per_track_velocities: pd.DataFrame,
+    df_velocities_lowess: pd.DataFrame,
+    df_piv_mova: pd.DataFrame,
+    df_time: pd.DataFrame, config,
+    legend_loc: str = "upper right",
+    add_surge_classes: bool = True,
+    legend_loc_surge: str = "upper left",
+) -> None:
+
+    # Config Values
+    event = config.EVENT
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+    ylim_velocity = config.YLIM_VELOCITY
+
+
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+
+    # merge DFs for scaling later
+
+    df_merged = df_per_track_velocities.merge(
+        df_per_track_grainsize.drop(columns=["center_frame"]),
+        on="track",
+        how="inner"  # keeps only matching tracks
+    )
+
+    # Raw values
+    sc = ax.scatter(
+        df_merged["center_frame"],
+        df_merged['mean_track_velocity'],
+        label='Mean velocity per track GS scaled',
+        c=df_merged["mean_track_grainsize"],
+        # norm=colors.LogNorm(),
+        cmap="rainbow",
+        s=8,
+        alpha=0.9,
+        edgecolors="none",
+    )
+
+
+    # --- Log ticks, normal numbers ---
+    cbar = plt.colorbar(sc, ax=ax, pad = 0.02)
+    cbar.set_label("Grain Size (m)", fontsize=14)
+    cbar.ax.tick_params(labelsize=12, width=1.2, length=6)
+
+    # PIV velocity for comparison
+    ax.plot(
+        df_piv_mova['frame'],
+        df_piv_mova['piv_vel_smoothed'],
+        label="PIV surface velocity smoothed",
+        color='tab:red',
+        linewidth=0.8,
+        alpha=0.7,
+        zorder=5
+    )
+
+
+    # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
+    for i, (_, seg) in enumerate(df_velocities_lowess.groupby("segment")):
+        ax.plot(
+            seg['frame'],
+            seg['lowess_mean_track_velocity'],
+            label='Smoothed track velocities (LOWESS)' if i == 0 else None,  # label only once
+            color='tab:blue',
+            linewidth=1.5,
+            alpha=1.0,
+            zorder=6
+        )
+
+    # --- X and Y Axis
+    style_main_axis(ax,
+                    xlabel="Frame Number",
+                    ylabel="Velocity (m/s)",
+                    xlim=(start_frame, end_frame),
+                    ylim=config.YLIM_VELOCITY,
+                    fontsize=14,
+                    add_grid=False)
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time, fontsize=14)
+
+    # --- Legend
+    add_standard_legend(ax, loc=legend_loc, fontsize=12)
+
+    if add_surge_classes:
+        add_surge_background(ax, config.EVENT, start_frame, end_frame,
+                             legend_loc=legend_loc_surge,
+                             fontsize=12)
+        fig_name = f"Track_Vel_GS_scaled_and_PIV_surge_classes_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    else:
+        fig_name = f"Track_Vel_GS_scaled_and_PIV_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    # --- Save
+    save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
+
+
 
 
 # --- Cross-section Plots
@@ -851,7 +994,7 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
     df['mean_time'] = df['mean_time'] - t_min
 
-    fig, ax = plt.subplots(figsize=(16, 7))
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE_BUBBLE)
 
     sc = ax.scatter(
         df['mean_x_axis_pos'],
@@ -876,8 +1019,8 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
     # Add colorbar
     cbar = fig.colorbar(sc, ax=ax)
-    cbar.set_label("Mean Time (s)")
-
+    cbar.set_label("Mean Time (s)", fontsize=14)
+    cbar.ax.tick_params(labelsize=14)
     # Legend
     add_standard_legend(ax)
 
@@ -907,11 +1050,12 @@ def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
     )
 
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
 
     ax.plot(
         df_counts['frame'],
         df_counts['unique_tracks_per_frame'],
-        label="Detections per frame after filtering",
+        label="Filtered",
         c='tab:green',
         alpha=1,
         linewidth=2,
@@ -921,14 +1065,13 @@ def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
     style_main_axis(
         ax,
         xlabel='Frame Number',
-        ylabel='Number of Detections',
+        ylabel='Number of Boulders',
         xlim= (start_frame, end_frame),
         ylim= (0, df_counts['unique_tracks_per_frame'].max() * 1.1),
-        fontsize= 16
     )
 
     # --- TOP axis (time in MM:SS)
-    add_time_top_axis(ax, df_time, fontsize=14)
+    add_time_top_axis(ax, df_time)
 
     # --- Legend
     add_standard_legend(ax, fontsize=14, loc='best')
@@ -958,14 +1101,15 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
     )
 
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
 
 
     ax.plot(
         df_counts_yolo['frame_number_img'],
         df_counts_yolo['number_of_detections_yolo'],
-        label="Detections per frame (YOLO)",
+        label="Detected",
         c='tab:grey',
-        alpha=0.90,
+        alpha=1,
         linewidth=1,
         zorder=1
     )
@@ -973,7 +1117,7 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
     ax.plot(
         df_counts['frame'],
         df_counts['unique_tracks_per_frame'],
-        label="Detections per frame after filtering",
+        label="Filtered",
         c='tab:green',
         alpha=1,
         linewidth=2,
@@ -983,10 +1127,9 @@ def plot_number_of_detections_yolo8(df_clean ,df_counts_yolo, df_time, config) -
     style_main_axis(
         ax,
         xlabel='Frame Number',
-        ylabel='Number of Detections',
+        ylabel='Number of Boulders',
         xlim= (start_frame, end_frame),
-        ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
-        fontsize= 16
+        ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1)
     )
 
     # --- TOP axis (time in MM:SS)
@@ -1032,11 +1175,12 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
     )
 
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
 
     ax.plot(
         df_counts_yolo['frame_number_img'],
         df_counts_yolo['number_of_detections_yolo'],
-        label="Detections per frame (YOLO)",
+        label="Detected",
         c='tab:grey',
         alpha=0.90,
         linewidth=1,
@@ -1046,7 +1190,7 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
     ax.plot(
         df_counts_raw['frame'],
         df_counts_raw['unique_tracks_per_frame'],
-        label="Detections per frame after tracking",
+        label="Tracked",
         c='tab:cyan',
         alpha=1,
         linewidth=1.5,
@@ -1056,7 +1200,7 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
     ax.plot(
         df_counts['frame'],
         df_counts['unique_tracks_per_frame'],
-        label="Detections per frame after filtering",
+        label="Filtered",
         c='tab:green',
         alpha=1,
         linewidth=2,
@@ -1067,10 +1211,9 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
     style_main_axis(
         ax,
         xlabel='Frame Number',
-        ylabel='Number of Detections',
+        ylabel='Number of Boulders',
         xlim= (start_frame, end_frame),
         ylim= (0, df_counts_yolo['number_of_detections_yolo'].max() * 1.1),
-        fontsize= 16
     )
     # --- Legend
     add_standard_legend(ax, fontsize=14, loc=legend_loc)
@@ -1083,4 +1226,81 @@ def plot_number_of_detections_yolo8_and_tracking(df_clean ,df_counts_yolo, df_ra
 
     # save
     fig_name = f"Detections_all_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
+
+
+
+
+def plot_number_of_detections_tracked_and_filtered(df_clean, df_raw, df_time, config,
+                                                 legend_loc: str = "upper right",
+                                                 add_surge_classes: bool = True,
+                                                 legend_loc_surge: str = "upper left",
+                                                 ) -> None:
+
+    # Config Values
+    start_frame = config.START_FRAME
+    end_frame = config.END_FRAME
+
+    # Filter first
+    df_clean = df_clean.loc[df_clean["frame"].between(start_frame, end_frame)]
+    df_raw = df_raw.loc[df_raw["frame"].between(start_frame, end_frame)]
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts = (
+        df_clean.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    # Compute unique tracks per frame directly (one row per frame)
+    df_counts_raw = (
+        df_raw.groupby("frame", as_index=False)
+        .agg(unique_tracks_per_frame=("track", "nunique"))
+        .sort_values("frame")
+        .reset_index(drop=True)
+    )
+
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
+     
+
+    ax.plot(
+        df_counts_raw['frame'],
+        df_counts_raw['unique_tracks_per_frame'],
+        label="Tracked",
+        c='tab:cyan',
+        alpha=1,
+        linewidth=1.5,
+        zorder=1
+    )
+
+    ax.plot(
+        df_counts['frame'],
+        df_counts['unique_tracks_per_frame'],
+        label="Filtered",
+        c='tab:green',
+        alpha=1,
+        linewidth=2,
+        zorder=2
+    )
+
+
+    style_main_axis(
+        ax,
+        xlabel='Frame Number',
+        ylabel='Number of Boulders',
+        xlim= (start_frame, end_frame),
+        ylim= (0, df_counts_raw['unique_tracks_per_frame'].max() * 1.1)
+    )
+    # --- Legend
+    add_standard_legend(ax, fontsize=14, loc=legend_loc)
+
+    if add_surge_classes:
+        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge)
+
+    # --- TOP axis (time in MM:SS)
+    add_time_top_axis(ax, df_time)
+
+    # save
+    fig_name = f"Detections_Tracked_Filtered_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
     save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)

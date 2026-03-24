@@ -16,19 +16,14 @@ from OEB_Calculations import calculate_vel, calculate_gs
 from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
 from OEB_Boulder_Detections import plot_detections
 from utils.data_utils import setup_logging
-
-# ------------------------------
-# Configuration / Parameters
-# ------------------------------
 import config
-# config.START_FRAME = 8000
-# config.END_FRAME = 13000
+
 
 # ------------------------------
 # Run options
 # ------------------------------
-Run_Filter = False                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
-Run_Calculations = False                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
+Run_Filter = True                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
+Run_Calculations = True                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
 Run_Plotting = True                    # Visualize data
 
 # ------------------------------
@@ -43,10 +38,10 @@ run_calc_GS = True                     # lowess track grainsize
 # ------------------------------
 # --- Plotting ---
 plot_stats_per_frame = True             # Per Frame stats (Moving Average plots)
-plot_track_velocity = True             # Per Track stats (LOWESS Plot)
+plot_track_velocity = True              # Per Track stats (LOWESS Plot)
 plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
-plot_xy_mov_for_frame_sequence = False   # X - Y Track movement
-plot_cross_sec = False                   # Velocity cross-section plot
+plot_xy_mov_for_frame_sequence = True   # X - Y Track movement
+plot_cross_sec = True                   # Velocity cross-section plot
 plot_number_of_detections = True        # Plot number of Detections (YOLO, tracking and after  filtering)
 
 
@@ -79,7 +74,7 @@ def main():
 
 if __name__ == "__main__":
 
-    frame_ranges = [
+    '''frame_ranges = [
         (0, 100000),
         (8000, 23000),
         (32000, 46500),
@@ -92,6 +87,6 @@ if __name__ == "__main__":
         print(f"\n--- Running for frames {start} → {end} ---\n")
 
         config.START_FRAME = start
-        config.END_FRAME = end
+        config.END_FRAME = end'''
 
-        main()
+    main()

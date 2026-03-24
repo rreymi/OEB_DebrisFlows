@@ -40,12 +40,6 @@ def calculate_vel(run_calc_per_frame = True, run_calc_per_track = True)-> None:
             gap_threshold=config.GAP_THRESHOLD
         )
 
-        '''# Remove frames with very few detections
-        df_mova = clean_frames_low_detections(
-            df_mova,
-            min_num_detections=config.MIN_NUM_DETECTIONS
-        )'''
-
         # Save moving-average CSV
         df_mova.to_csv(output_dir / f"df_mova_{event}.csv", index=False)
         df_mova.to_parquet(output_dir / f"df_mova_{event}.parquet")

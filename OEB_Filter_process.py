@@ -6,17 +6,16 @@ from utils.data_filter import (
     rolling_median_filter,
     filter_tracks_by_movement,
     filter_tracks_that_jump,
-    filter_tracks_by_stats)
+    filter_tracks_by_stats
+)
 
 from utils.data_utils import load_and_merge_event_data, extract_frame_time_table
 
 def filter_process():
     logging.info("Filter Process started...")
-    # --- Event ---
-    event = config.EVENT
 
     # --- Load raw Data ---
-    df_raw = load_and_merge_event_data(event)
+    df_raw = load_and_merge_event_data(config.EVENT)
 
     # --- Extract df_time for later
     df_time = extract_frame_time_table(df_raw)
@@ -25,8 +24,8 @@ def filter_process():
     # Step 1 - Remove clear OUTLIERS and replace zeros with NANS
     df_filtered_01 = filter_tracks_range(
         df_raw,
-        vel_range=(0, 10),
-        gs_range=(0, 3),
+        vel_range=config.VELOCITY_RANGE,
+        gs_range=config.GRAINSIZE_RANGE,
     )
 
     # Step 2 - Rolling MEDIAN Filter to remove spikes/artifacts in DATA
@@ -40,13 +39,13 @@ def filter_process():
         df_filtered_02,
         yaxis_min_length=config.YAXIS_MIN_LENGTH)
 
-    # Step 4 - Filter out track that move very slow
+    # Step 4 - Filter out tracks that jump
     df_filtered_04, df_bad = filter_tracks_that_jump(
         df_filtered_03,
         jump_threshold=config.JUMP_THRESHOLD,
     )
 
-    # Step 5
+    # Step 5 - Filter out track that move very slow
     df_clean = filter_tracks_by_stats(
         df_filtered_04,
         min_median_track_vel=config.MIN_MEDIAN_TRACK_VEL,
@@ -66,11 +65,10 @@ def filter_process():
         f"Last Image Frame:   {df_clean['frame'].max()}\n"
         f"Total number of Image Frames:   {df_clean['frame'].nunique()}\n"
         "\n--- Filter process finished ---\n"
-        "df_clean and df_time saved.\n"
     )
 
     # --- Save DFs---
-    df_raw.to_parquet(config.OUTPUT_DIR / f"df_raw_{event}.parquet")
-    df_clean.to_parquet(config.OUTPUT_DIR / f"df_clean_{event}.parquet")
-    df_time.to_parquet(config.OUTPUT_DIR / f"df_time_{event}.parquet")
-    df_bad.to_parquet(config.OUTPUT_DIR / f"df_bad_{event}.parquet")
+    df_raw.to_parquet(config.OUTPUT_DIR / f"df_raw_{config.EVENT}.parquet")
+    df_clean.to_parquet(config.OUTPUT_DIR / f"df_clean_{config.EVENT}.parquet")
+    df_time.to_parquet(config.OUTPUT_DIR / f"df_time_{config.EVENT}.parquet")
+    df_bad.to_parquet(config.OUTPUT_DIR / f"df_bad_{config.EVENT}.parquet")

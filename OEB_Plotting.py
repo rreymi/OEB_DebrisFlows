@@ -1,4 +1,3 @@
-import logging
 import config
 import pandas as pd
 
@@ -11,7 +10,6 @@ from utils.plot_utils import (
     plot_xy_mov_tracks_color_vel,
     plot_track_grainsize_bubble,
     plot_cross_section_velocity,
-    plot_number_of_detections,
     plot_track_vel_and_grainsize
 
 )

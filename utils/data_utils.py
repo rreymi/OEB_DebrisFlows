@@ -85,7 +85,7 @@ def extract_frame_time_table(
 
 
 def compute_mean_median_per_frame(
-    df_raw: pd.DataFrame,
+    df_clean: pd.DataFrame,
     columns: list = None,
     ) -> pd.DataFrame:
     """
@@ -93,16 +93,16 @@ def compute_mean_median_per_frame(
     """
 
     if columns is None:
-        columns = ['frame', 'track', 'velocity', 'grainsize', 'time']
+        columns = ['frame', 'track', 'velocity_median_filtered', 'grainsize_median_filtered', 'time']
 
     # Reduce size by keeping only essential columns
-    df = df_raw[columns].copy()
+    df = df_clean[columns].copy()
 
     # --- PER-FRAME STATISTICS ---
-    df['mean_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('mean')
-    df['mean_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('mean')
-    df['median_velocity_per_frame'] = df.groupby('frame')['velocity'].transform('median')
-    df['median_grainsize_per_frame'] = df.groupby('frame')['grainsize'].transform('median')
+    df['mean_velocity_per_frame'] = df.groupby('frame')['velocity_median_filtered'].transform('mean')
+    df['mean_grainsize_per_frame'] = df.groupby('frame')['grainsize_median_filtered'].transform('mean')
+    df['median_velocity_per_frame'] = df.groupby('frame')['velocity_median_filtered'].transform('median')
+    df['median_grainsize_per_frame'] = df.groupby('frame')['grainsize_median_filtered'].transform('median')
 
     return df
 
@@ -276,12 +276,7 @@ def merge_piv_and_tracking(df_piv: pd.DataFrame, df_mova: pd.DataFrame) -> pd.Da
 
 
 def compute_track_velocities(df_filtered: pd.DataFrame, config,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-
-
-    '''# 1) Reduce dataframe
-    columns = ["frame", "track", "velocity", "grainsize", "time"]
-    df = df_filtered[columns].copy()'''
+) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     # 1) Reduce dataframe
     columns = ["frame", "track", "velocity_median_filtered", "grainsize_median_filtered", "time"]
@@ -409,7 +404,7 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
 
 def compute_track_grainsize(
         df_filtered: pd.DataFrame, config
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     if df_filtered.empty:
         raise ValueError(
@@ -461,6 +456,8 @@ def compute_track_grainsize(
             track_distance=("step_distance", "sum"),
         )
     )
+    # Remove TrackIDS with only NANs
+    track_stats = track_stats.dropna(subset=["mean_track_grainsize", "median_track_grainsize"])
 
     # 3) Center frame per track
     idx = df.groupby("track").cumcount()

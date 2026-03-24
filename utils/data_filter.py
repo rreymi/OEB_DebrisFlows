@@ -111,38 +111,7 @@ def filter_tracks_by_movement(df: pd.DataFrame, yaxis_min_length: float,
 
     return filtered_df
 
-
-# Step 4 - Filter out track that move very slow
-def filter_tracks_by_stats(
-    df: pd.DataFrame,
-    min_median_track_vel: float,
-) -> pd.DataFrame:
-
-    track_stats = df.groupby('track').agg(
-        track_vel_median=('velocity_median_filtered', 'median'))
-
-    total_tracks = len(track_stats)
-
-    mask_vel_median = (track_stats['track_vel_median'] >= min_median_track_vel)
-
-    # Combine all filters
-    valid_tracks = track_stats[mask_vel_median].index
-
-    # Debug / verbose output
-    logging.info(
-        " --- 2. Filter Step - very slow tracks \n"
-        f"Total tracks: {total_tracks}\n"
-        f"Tracks removed by min track median velocity filter: {total_tracks - mask_vel_median.sum()} \n"
-        f"Tracks remaining: {len(valid_tracks)}\n"
-    )
-
-    # Filter the dataframe
-    df_filtered = df[df['track'].isin(valid_tracks)].reset_index(drop=True)
-
-    return df_filtered
-
-
-# Step 5 - Filter out tracks that jump
+# Step 4 - Filter out tracks that jump
 def filter_tracks_that_jump(
         df: pd.DataFrame,
         jump_threshold: float,
@@ -176,3 +145,33 @@ def filter_tracks_that_jump(
                  f"Bad tracks : {len(bad_tracks)}\n"
                  )
     return df_good, df_bad
+
+
+# Step 5 - Filter out track that move very slow
+def filter_tracks_by_stats(
+    df: pd.DataFrame,
+    min_median_track_vel: float,
+) -> pd.DataFrame:
+
+    track_stats = df.groupby('track').agg(
+        track_vel_median=('velocity_median_filtered', 'median'))
+
+    total_tracks = len(track_stats)
+
+    mask_vel_median = (track_stats['track_vel_median'] >= min_median_track_vel)
+
+    # Combine all filters
+    valid_tracks = track_stats[mask_vel_median].index
+
+    # Debug / verbose output
+    logging.info(
+        " --- 2. Filter Step - very slow tracks \n"
+        f"Total tracks: {total_tracks}\n"
+        f"Tracks removed by min track median velocity filter: {total_tracks - mask_vel_median.sum()} \n"
+        f"Tracks remaining: {len(valid_tracks)}\n"
+    )
+
+    # Filter the dataframe
+    df_filtered = df[df['track'].isin(valid_tracks)].reset_index(drop=True)
+
+    return df_filtered

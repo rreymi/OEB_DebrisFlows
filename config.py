@@ -30,7 +30,7 @@ MIN_ROLL_WINDOW = 3
 MAX_ROLL_WINDOW = 11
 
 # Step 3
-YAXIS_MIN_LENGTH = 0.3
+YAXIS_MIN_LENGTH = 0.2
 
 # Step 4
 JUMP_THRESHOLD = 1
@@ -78,4 +78,4 @@ Y_LIM_AXIS = (-8, 8)
 
 
 # Bubble plot (Grain size + Track Velocities)
-BIN_WIDTH_BUBBLE = 3
+BIN_WIDTH_BUBBLE = 10

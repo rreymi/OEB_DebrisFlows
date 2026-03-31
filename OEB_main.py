@@ -14,6 +14,7 @@ import logging
 from OEB_Filter_process import filter_process
 from OEB_Calculations import calculate_vel, calculate_gs
 from OEB_Plotting import plot_stats, plot_grainsize, plot_cross_section
+from OEB_GSD import plot_gsd
 from OEB_Boulder_Detections import plot_detections
 from utils.data_utils import setup_logging
 import config
@@ -22,8 +23,8 @@ import config
 # ------------------------------
 # Run options
 # ------------------------------
-Run_Filter = True                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
-Run_Calculations = True                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
+Run_Filter = False                      # TrackFiles get filtered, filter para defined in config. Output: df_clean
+Run_Calculations = False                # df_per_track_vel + grainsize and df_mova/df_stats get calc using df_clean
 Run_Plotting = True                    # Visualize data
 
 # ------------------------------
@@ -37,13 +38,14 @@ run_calc_GS = True                     # lowess track grainsize
 
 # ------------------------------
 # --- Plotting ---
-plot_stats_per_frame = True             # Per Frame stats (Moving Average plots)
-plot_track_velocity = True              # Per Track stats (LOWESS Plot)
+plot_stats_per_frame = False             # Per Frame stats (Moving Average plots)
+plot_track_velocity = False               # Per Track stats (LOWESS Plot)
 plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
-plot_xy_mov_for_frame_sequence = True   # X - Y Track movement
-plot_cross_sec = True                   # Velocity cross-section plot
+plot_xy_mov_for_frame_sequence = False    # X - Y Track movement
+plot_cross_sec = False                   # Velocity cross-section plot
 plot_number_of_detections = True        # Plot number of Detections (YOLO, tracking and after  filtering)
-
+plot_GSD = False                         # plot GSD per event / surge
+plot_GSD_all_events= False
 
 def main():
 
@@ -69,13 +71,16 @@ def main():
         if plot_number_of_detections:
             plot_detections()
 
+        if plot_GSD:
+            plot_gsd(plot_GSD_all_events)
+
     logging.info("\n All done \n")
 
 
 if __name__ == "__main__":
 
     '''frame_ranges = [
-        (0, 100000),
+        # (0, 100000),
         (8000, 23000),
         (32000, 46500),
         (47500, 62500),
@@ -87,6 +92,6 @@ if __name__ == "__main__":
         print(f"\n--- Running for frames {start} → {end} ---\n")
 
         config.START_FRAME = start
-        config.END_FRAME = end'''
-
+        config.END_FRAME = end
+        main()'''
     main()

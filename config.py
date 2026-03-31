@@ -9,9 +9,11 @@ EVENT_DAY = "14"
 
 EVENT = f"{EVENT_YEAR}_{EVENT_MONTH}_{EVENT_DAY}"
 
-START_FRAME = 0
-END_FRAME = 10000
+START_FRAME = 8
+END_FRAME = 23000
 
+ADD_SURGE_CLASSES = True
+ADD_PERCENTILES = False
 # --------------------------------------------
 # --- Output paths
 # --------------------------------------------
@@ -54,28 +56,27 @@ LOWESS_FRAME_WINDOW_SIZE = 20
 LOWESS_GAP_THRESHOLD = 150
 LOWESS_SEGMENT_LENGTH = 20
 
+STATISTIC_TYPE = "mean" # or "median"  # Per Track velocity (mean or median over track lifespan) Median --> looks weird, multiple same values due to point cloud interpolation
+
 # --------------------------------------------
 # --- Plot Parameters
 # --------------------------------------------
-FIG_SIZE = (14,7)           # 2:1
-FIG_SIZE_TIME = (15,6)      # 2.5:1
+FIG_SIZE =   (14,7)   #    (15,6)  # 2:1
+
+#FIG_SIZE_TIME = (15,6)      # 2.5:1
 FIG_SIZE_BUBBLE = (15,7)
 
 YLIM_VELOCITY = (0, 5)
 YLIM_GRAINSIZE = (0, 1)
 
-# PER TRACK Plots
-STATISTIC_TYPE = "mean" # or "median"
-
 # Cross-section plots
-Y_AXIS_START= 4
-Y_AXIS_END = -4
+Y_AXIS_START= 8
+Y_AXIS_END = -8
 X_LIM_AXIS_CS = (-10, 2)
 
 # X - Y Track Mov Plot
-X_LIM_AXIS = (-10, 2)
-Y_LIM_AXIS = (-8, 8)
-
+X_LIM_AXIS = (-9, 6)
+Y_LIM_AXIS = (-8, 10)
 
 # Bubble plot (Grain size + Track Velocities)
 BIN_WIDTH_BUBBLE = 10

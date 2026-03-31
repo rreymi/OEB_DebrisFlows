@@ -414,10 +414,8 @@ def plot_piv_and_mean_velocity_per_frame(
 
 # --- XY Track path movement ---
 def plot_xy_mov_tracks(df: pd.DataFrame, config,
-                    title: str = None,
-                    x_lim: tuple[float, float] = (-10, 6),
-                    y_lim: tuple[float, float] = (-8, 8),
-                    ):
+                    title: str = None
+):
 
     """
     Plot all tracks from df whose track ID is in bad_tracks.
@@ -430,11 +428,12 @@ def plot_xy_mov_tracks(df: pd.DataFrame, config,
                 df_track["bb_center_lidar_y"],
                 linewidth=1)
 
-    # formatting
-    ax.set_xlim(x_lim)
-    ax.set_ylim(y_lim)
-    ax.set_xlabel("X (LiDAR bbox center)")
-    ax.set_ylabel("Y (LiDAR bbox center)")
+    style_main_axis(ax,
+                    xlim=config.X_LIM_AXIS,
+                    ylim=config.Y_LIM_AXIS,
+                    xlabel="X (bbox center) (m)",
+                    ylabel="Y (bbox center) (m)", )
+
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle='--', alpha=0.3)
 
@@ -488,8 +487,8 @@ def plot_xy_mov_tracks_color_vel(
     style_main_axis(ax,
                     xlim=config.X_LIM_AXIS,
                     ylim=config.Y_LIM_AXIS,
-                    xlabel = "X (LiDAR bbox center) (m)",
-                    ylabel="Y (LiDAR bbox center) (m)",)
+                    xlabel = "X (bbox center) (m)",
+                    ylabel="Y (bbox center) (m)",)
 
     ax.set_aspect("equal", "box")
     ax.grid(True, linestyle="--", alpha=0.25)
@@ -957,7 +956,7 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
     df = (
         df.groupby("track")
         .agg(
-            mean_track_velocity=("velocity", "mean"),
+            mean_track_velocity=("velocity_median_filtered", "mean"),
             mean_x_axis_pos=("bb_center_lidar_x", "mean"),
             mean_time=('time', 'mean')
         )
@@ -995,7 +994,7 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
     # Add colorbar
     cbar = fig.colorbar(sc, ax=ax)
-    cbar.set_label("Mean Time (s)", fontsize=14)
+    cbar.set_label("Event Time (s)", fontsize=14)
     cbar.ax.tick_params(labelsize=14)
     # Legend
     add_standard_legend(ax)

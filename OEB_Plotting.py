@@ -65,9 +65,9 @@ def plot_stats(plot_stats_per_frame, plot_stats_per_track, plot_xy_mov_for_frame
         # --- Plot Track Velocities
         plot_track_velocities_lowess(df_per_track_velocities, df_velocities_lowess, df_piv_mova, df_time, config,
                                      legend_loc = "upper right",
-                                     add_surge_classes = True,
+                                     add_surge_classes = config.ADD_SURGE_CLASSES,
                                      legend_loc_surge = "upper left",
-                                     add_percentiles=False,
+                                     add_percentiles=config.ADD_PERCENTILES,
                                      )
 
         print("--- LOWESS Track Velocity plotted --- \n")
@@ -108,7 +108,7 @@ def plot_grainsize() -> None:
     plot_track_grainsize_bubble(df_per_track_grainsize, df_per_track_velocities,
                                 df_velocities_lowess, df_time, config,
                                 legend_loc="upper right",
-                                add_surge_classes=True,
+                                add_surge_classes=config.ADD_SURGE_CLASSES,
                                 legend_loc_surge="upper left",
                                 )
     print("--- Bubble Track Grain size plotted --- \n")
@@ -117,7 +117,7 @@ def plot_grainsize() -> None:
     plot_track_vel_and_grainsize(df_per_track_grainsize, df_per_track_velocities, df_velocities_lowess,
                                 df_piv_mova, df_time, config,
                                 legend_loc="upper right",
-                                add_surge_classes=True,
+                                add_surge_classes=config.ADD_SURGE_CLASSES,
                                 legend_loc_surge="upper left",)
 
 

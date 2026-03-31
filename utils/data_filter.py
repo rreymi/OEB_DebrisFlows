@@ -13,6 +13,8 @@ def filter_tracks_range(
     gs_range: tuple,
 ) -> pd.DataFrame:
 
+    df = df.copy()
+
     # Physical range filtering
     df["velocity"] = df["velocity"].where(
         df["velocity"].between(*vel_range), np.nan

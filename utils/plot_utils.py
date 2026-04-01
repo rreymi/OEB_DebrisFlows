@@ -12,9 +12,7 @@ import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import os
 
-
-
-# --- Helper Functions for all plots - basics
+# --- Helper Functions for all plots - basics ------------------------------------------------------------------
 def style_main_axis(
     ax: plt.Axes,
     xlabel: str = 'Frame Number',
@@ -96,23 +94,36 @@ def add_time_top_axis(
 
 def add_standard_legend(
     ax: plt.Axes,
+    ax2: plt.Axes = None,   # <-- NEW
     fontsize: int = 12,
     loc: str = "best",
 ):
+    # Get handles from main axis
+    handles, labels = ax.get_legend_handles_labels()
+
+    # If second axis exists → extend
+    if ax2 is not None:
+        handles2, labels2 = ax2.get_legend_handles_labels()
+        handles += handles2
+        labels += labels2
+
+    # Create legend
     leg = ax.legend(
+        handles,
+        labels,
         frameon=True,
         fontsize=fontsize,
         loc=loc,
         facecolor="white",
         edgecolor="black",
         framealpha=1,
-     )
+    )
 
+    # Ensure full opacity in legend
     for lh in leg.legend_handles:
         lh.set_alpha(1)
 
     return leg
-
 
 def  save_plot(fig, fig_name, output_dir, start_frame, end_frame):
 
@@ -252,9 +263,10 @@ def add_surge_background(
             ax.add_artist(original_legend)
 
 
-# --- Plot Functions for data per FRAME
 
-# Helper
+
+# --- Plot Functions for data per FRAME -------------------------------------------------------------------------
+
 def get_plot_columns(plot_variable: str, statistic: str):
     """
     Return the column names for raw per-frame values and moving average based on user input.
@@ -410,7 +422,8 @@ def plot_piv_and_mean_velocity_per_frame(
     save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
 
 
-# --- Function for plotting per Track data ---
+
+# --- Function for plotting per Track data -----------------------------------------------------------------------
 
 # --- XY Track path movement ---
 def plot_xy_mov_tracks(df: pd.DataFrame, config,
@@ -551,34 +564,46 @@ def plot_track_velocities_lowess(
         label=label_raw,
         s=10,  # small marker
         c="0.7",  # light gray (neutral, print-safe)
-        alpha=0.4,  # faint visibility
+        alpha=0.5,  # faint visibility
         marker="o",  # clean filled marker
         edgecolors="none",  # no border
         linewidths=0,
         zorder=1,
         rasterized=True  # optional but recommended
     )
-    if add_percentiles:
 
-        ax.fill_between(
-            df_lowess["frame"],
-            df_lowess["p5"],
-            df_lowess["p95"],
-            label="p5-p95",
-            color="0.8",
-            alpha=0.5,
-            zorder=2
+    # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
+    for i, (_, seg) in enumerate(df_lowess.groupby("segment")):
+        # Percentile band of mean Track Velocity
+        if add_percentiles:
+            ax.fill_between(
+                seg["frame"],
+                seg["p5"],
+                seg["p95"],
+                label="p5-p95" if i == 0 else None,
+                color="0.8",
+                alpha=0.6,
+                zorder=2
+            )
+            ax.fill_between(
+                seg["frame"],
+                seg["p25"],
+                seg["p75"],
+                label="p25-p75" if i == 0 else None,
+                color="0.6",
+                alpha=0.6,
+                zorder=3
+            )
+        # LOWESS velocity
+        ax.plot(
+            seg['frame'],
+            seg[lowess_track_velocity],
+            label=label_smooth if i == 0 else None,  # label only once
+            color='tab:blue',
+            linewidth=1.5,
+            alpha=1.0,
+            zorder=5
         )
-        ax.fill_between(
-            df_lowess["frame"],
-            df_lowess["p25"],
-            df_lowess["p75"],
-            label="p25-p75",
-            color="0.6",
-            alpha=0.6,
-            zorder=3
-        )
-
 
     # PIV velocity for comparison
     ax.plot(
@@ -588,20 +613,8 @@ def plot_track_velocities_lowess(
         color='tab:red',
         linewidth=0.8,
         alpha=0.7,
-        zorder=5
+        zorder=4
     )
-
-    # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
-    for i, (_, seg) in enumerate(df_lowess.groupby("segment")):
-        ax.plot(
-            seg['frame'],
-            seg[lowess_track_velocity],
-            label=label_smooth if i == 0 else None,  # label only once
-            color='tab:blue',
-            linewidth=1.5,
-            alpha=1.0,
-            zorder=6
-        )
 
     # --- X and Y Axis
     style_main_axis(ax,
@@ -704,7 +717,7 @@ def plot_track_grainsize_bubble(
     ylim_velocity = config.YLIM_VELOCITY
 
     frame_bin = config.BIN_WIDTH_BUBBLE
-    fig, ax = plt.subplots(figsize=config.FIG_SIZE_BUBBLE)
+    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
     # ------------------------------------------------------------------
     # Filter time window
@@ -836,64 +849,48 @@ def plot_track_grainsize_bubble(
 def plot_track_vel_and_grainsize(
     df_per_track_grainsize: pd.DataFrame,
     df_per_track_velocities: pd.DataFrame,
+    df_grainsize_lowess: pd.DataFrame,
     df_velocities_lowess: pd.DataFrame,
-    df_piv_mova: pd.DataFrame,
     df_time: pd.DataFrame, config,
     legend_loc: str = "upper right",
     add_surge_classes: bool = True,
     legend_loc_surge: str = "upper left",
 ) -> None:
 
-    # Config Values
-    start_frame = config.START_FRAME
-    end_frame = config.END_FRAME
+    fig, ax = plt.subplots(figsize=(15,7))
 
-
-    fig, ax = plt.subplots(figsize=config.FIG_SIZE)
-
-    # merge DFs for scaling later
-
+    # merge per track stats DFs for color scaling track vel dots later
     df_merged = df_per_track_velocities.merge(
         df_per_track_grainsize.drop(columns=["center_frame"]),
         on="track",
-        how="inner"  # keeps only matching tracks
+        how="inner"
     )
-    df_merged = df_merged[df_merged['center_frame'].between(start_frame, end_frame)]
-    # Compute 2.5th and 97.5th percentiles (to cover 95% of data)
-    gs_lower, gs_upper = np.percentile(df_merged["mean_track_grainsize"], [0, 98])
 
-    # Raw values
+    # filter frame range
+    df_merged = df_merged[df_merged['center_frame'].between(config.START_FRAME, config.END_FRAME)]
+
+    # Compute 2.5th and 97.5th percentiles (to cover 95% of data)
+    gs_lower, gs_upper = np.percentile(df_merged["mean_track_grainsize"], [0, 97.5])
+
+    # track vel scatter with GS color scale
     sc = ax.scatter(
         df_merged["center_frame"],
         df_merged['mean_track_velocity'],
         label='Mean velocity per track GS scaled',
         c=df_merged["mean_track_grainsize"],
-        vmin=0,
+        vmin=gs_lower,
         vmax=gs_upper,
-        # norm=colors.LogNorm(),
         cmap="rainbow",
         s=8,
         alpha=0.9,
         edgecolors="none",
+        zorder=1,
     )
 
-
     # --- Log ticks, normal numbers ---
-    cbar = plt.colorbar(sc, ax=ax, pad = 0.02)
+    cbar = plt.colorbar(sc, ax=ax, pad = 0.035)
     cbar.set_label("Grain Size (m)", fontsize=14)
     cbar.ax.tick_params(labelsize=12, width=1.2, length=6)
-
-    '''# PIV velocity for comparison
-    ax.plot(
-        df_piv_mova['frame'],
-        df_piv_mova['piv_vel_smoothed'],
-        label="PIV surface velocity smoothed",
-        color='tab:red',
-        linewidth=0.8,
-        alpha=0.7,
-        zorder=5
-    )'''
-
 
     # LOWESS Track Velocity is plotted in segments --> avoid interpolation over large gaps
     for i, (_, seg) in enumerate(df_velocities_lowess.groupby("segment")):
@@ -904,14 +901,44 @@ def plot_track_vel_and_grainsize(
             color='tab:grey',
             linewidth=1.5,
             alpha=0.9,
-            zorder=6
+            zorder=3
         )
+
+    # SECOND Y-AXIS for grain size
+    ax2 = ax.twinx()
+    # Grain sizes percentiles is plotted in segments --> avoid interpolation over large gaps
+    for i, (_, seg) in enumerate(df_grainsize_lowess.groupby("segment")):
+
+        ax2.plot(
+            seg['frame'],
+            seg['p95'],
+            label="Grain size d95" if i == 0 else None,
+            color='tab:purple',
+            linewidth=1,
+            alpha=0.9,
+            zorder=2
+        )
+
+        ax2.plot(
+            seg['frame'],
+            seg['p50'],
+            label="Grain size d50" if i == 0 else None,
+            color='tab:red',
+            linewidth=1.2,
+            alpha=0.8,
+            zorder=2
+        )
+
+    # ax2.set_ylabel("Grain Size (m)", fontsize=14)
+    ax2.tick_params(axis='y', labelsize=12)
+    ax2.set_ylim(0,1)
+
 
     # --- X and Y Axis
     style_main_axis(ax,
                     xlabel="Frame Number",
                     ylabel="Velocity (m/s)",
-                    xlim=(start_frame, end_frame),
+                    xlim=(config.START_FRAME, config.END_FRAME),
                     ylim=config.YLIM_VELOCITY,
                     fontsize=14,
                     add_grid=False)
@@ -920,39 +947,30 @@ def plot_track_vel_and_grainsize(
     add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
-    add_standard_legend(ax, loc=legend_loc, fontsize=12)
+    add_standard_legend(ax,ax2, loc=legend_loc, fontsize=12)
 
     if add_surge_classes:
-        add_surge_background(ax, config.EVENT, start_frame, end_frame,
+        add_surge_background(ax, config.EVENT, config.START_FRAME, config.END_FRAME,
                              legend_loc=legend_loc_surge,
                              fontsize=12)
-        fig_name = f"Track_Vel_GS_scaled_and_PIV_surge_classes_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+        fig_name = f"Track_Vel_GS_scaled_and_PIV_surge_classes_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg"
     else:
-        fig_name = f"Track_Vel_GS_scaled_and_PIV_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+        fig_name = f"Track_Vel_GS_scaled_and_PIV_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg"
     # --- Save
-    save_plot(fig, fig_name, config.OUTPUT_DIR, start_frame, end_frame)
+    save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 
 
-# --- Cross-section Plots
+# --- Cross-section Plots -----------------------------------------------------------------------------------
 def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
 
-    # Config Values
-    start_frame = config.START_FRAME
-    end_frame = config.END_FRAME
-    y_axis_start = config.Y_AXIS_START
-    y_axis_end = config.Y_AXIS_END
-
-
-    # Filter DF with mask
-    mask = (
-            df_clean['frame'].between(start_frame, end_frame)
-            & df_clean["bb_center_lidar_y"].between(y_axis_end, y_axis_start)
-    )
+    # Filter DF with mask - define frame range & Y-AXIS movement range
+    mask = (df_clean['frame'].between(config.START_FRAME, config.END_FRAME)
+            & df_clean["bb_center_lidar_y"].between(config.Y_AXIS_END, config.Y_AXIS_START))
     df = df_clean[mask]
 
-    # Calculate Track Velocities in predefined y-axis range
+    # Calculate Track Velocities in predefined Y-AXIS range
     df = (
         df.groupby("track")
         .agg(
@@ -962,11 +980,10 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
         )
     )
 
+    # calc event time
     t_min = df["mean_time"].min()
     t_max = df["mean_time"].max()
-
     norm = Normalize(vmin=0, vmax=t_max - t_min)
-
     df['mean_time'] = df['mean_time'] - t_min
 
     fig, ax = plt.subplots(figsize=config.FIG_SIZE_BUBBLE)
@@ -1000,13 +1017,13 @@ def plot_cross_section_velocity(df_clean: pd.DataFrame, config) -> None:
     add_standard_legend(ax)
 
     # save
-    fig_name = f"Cross_section_velocity_{config.EVENT}_{start_frame}_{end_frame}.jpeg"
+    fig_name = f"Cross_section_velocity_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg"
     save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
 
 
 
 
-# --- Detections
+# --- Plot functions for Boulder Detections -------------------------------------------------------------------------
 def plot_number_of_detections(df_clean: pd.DataFrame,df_time, config) -> None:
 
     # Config Values

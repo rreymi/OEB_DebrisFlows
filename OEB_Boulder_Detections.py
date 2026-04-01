@@ -5,7 +5,7 @@ import config
 import pandas as pd
 from pathlib import Path
 
-from utils.model_performance_utils import (
+from utils.boulder_det_utils import (
     get_detection_counts_yolo
 )
 
@@ -19,23 +19,19 @@ from utils.plot_utils import (
 
 def plot_detections() -> None:
 
-    event = config.EVENT
-
-
     #  Determine detections of YOLOv8
     base_dir = Path(r"D:\roman\Documents\Daten_Masterarbeit\03_output_Detection_Tracking")
-    output_file = base_dir / event /  'detections' /  f"df_detections_yolo_{event}.parquet"
+    output_file = base_dir / config.EVENT /  'detections' /  f"df_detections_yolo_{config.EVENT}.parquet"
 
     # Check if file exists
     if output_file.exists():
         logging.info(f"File already exists: {output_file}. Loading existing DataFrame.")
         df = pd.read_parquet(output_file)
     else:
-        logging.info(f"File not found. Computing detection counts for event {event}...")
-        df = get_detection_counts_yolo(event, base_dir)                                     # calc detections per frame
+        logging.info(f"File not found. Computing detection counts for event {config.EVENT}...")
+        df = get_detection_counts_yolo(config.EVENT, base_dir)                                     # calc detections per frame
         df.to_parquet(output_file)
         logging.info(f"Saved DataFrame to {output_file}")
-
 
 
     df_time = pd.read_parquet(config.OUTPUT_DIR/ f"df_time_{config.EVENT}.parquet")

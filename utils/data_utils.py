@@ -197,13 +197,7 @@ def clean_frames_low_detections(df: pd.DataFrame, min_num_detections: int = 1) -
 def load_piv_data(event: str) -> pd.DataFrame:
     """
     Load PIV Data of ronny and interpolate with object detection analysis data.
-
     Events_Ronny: PIV_VEL_TAB2024_06_14.csv
-
-
-
-
-        pd.DataFrame: Merged dataframe.
     """
     def time_to_seconds(t: str) -> float:
         parts = t.split(":")
@@ -319,13 +313,11 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
     df_per_track_velocities["frame_diff"] = (
         df_per_track_velocities["center_frame"].diff()
     )
-
     df_per_track_velocities["segment"] = (
             df_per_track_velocities["frame_diff"] > config.LOWESS_GAP_THRESHOLD
     ).cumsum() # Counts True = 1, as soon as threshold reached a new segment starts
 
     # 6) LOWESS per segment
-    # ---------------------------------------------------
     lowess_results: list[pd.DataFrame] = []
 
     for seg_id, seg in df_per_track_velocities.groupby("segment"):
@@ -375,20 +367,28 @@ def compute_track_velocities(df_filtered: pd.DataFrame, config,
             .rename(columns={"center_frame": "frame"})
         )
 
+        df_percentiles_smooth = (
+            df_percentiles
+            .set_index("frame")
+            .rolling(window=20, center=True, min_periods=1)
+            .mean()
+            .rename_axis("frame")
+            .reset_index()
+        )
 
         df_segment = (
             df_lowess_mean
             .merge(df_lowess_median, on="frame", how="outer")
-            .merge(df_percentiles, on="frame", how="outer")
+            .merge(df_percentiles_smooth, on="frame", how="outer")
+            .sort_values('frame')
         )
 
         df_segment["segment"] = seg_id
 
         lowess_results.append(df_segment)
 
-    # ---------------------------------------------------
-    # 7) Combine all segments
-    # ---------------------------------------------------
+
+    # 7) Combine all segments and save list as DF
     if lowess_results:
         df_velocities_lowess = (
             pd.concat(lowess_results)
@@ -412,18 +412,17 @@ def compute_track_grainsize(
             "cannot compute grain-size statistics."
         )
 
-    # Reduce size by keeping only essential columns
+    # 0) Reduce DF size by keeping only essential columns
     cols = ['frame', 'track','grainsize_median_filtered', 'bb_width', "bb_center_lidar_x", "bb_center_lidar_y",
             "bb_center_lidar_z", 'time']
     df = df_filtered[cols]
     df = df.sort_values(["track", "frame"])
 
-    # Calculate step distance between track appearance
+    # 1) Calculate step distance between track appearance
     dxyz = (
         df.groupby("track")[["bb_center_lidar_x", "bb_center_lidar_y", "bb_center_lidar_z"]]
         .diff()
     )
-
     df["step_distance"] = (             # calc the vector length row wise.
         np.linalg.norm(
             dxyz[[
@@ -435,24 +434,20 @@ def compute_track_grainsize(
         )
     )
 
-    # Calculate statistic per TRACK
+    # 2) Calculate statistic per TRACK
     track_stats = (
         df.groupby("track")
         .agg(
             # grain size
             mean_track_grainsize=("grainsize_median_filtered", "mean"),
             median_track_grainsize=("grainsize_median_filtered", "median"),
-
             # geometry
             mean_track_bb_width=("bb_width", "mean"),
-
-            # NEW: track length (frames)
+            # track length (frames)
             track_length_frames=("frame", "count"),
-
-            # NEW: track duration
+            # track duration
             track_duration=("time", lambda x: x.max() - x.min()),
-
-            # NEW: distance traveled
+            # distance traveled
             track_distance=("step_distance", "sum"),
         )
     )
@@ -473,7 +468,6 @@ def compute_track_grainsize(
     # 4) Combine - trackID with center frame + all stats
     # Take all per-track statistics, attach the representative frame of each track,
     # turn the index into a column, and order tracks in time
-
     df_per_track_grainsize = (
         track_stats
         .join(center_frame)
@@ -481,22 +475,71 @@ def compute_track_grainsize(
         .sort_values("center_frame")
     )
 
-    # 5) LOWESS smoothing
-    n_frames = df["frame"].nunique()
-    frac = config.LOWESS_FRAME_WINDOW_SIZE / n_frames
-
-    grainsize_lowess_mean = lowess(
-        endog=df_per_track_grainsize["mean_track_grainsize"],
-        exog=df_per_track_grainsize["center_frame"],
-        frac=frac,
-        it=config.LOWESS_ITERATIONS,
-        return_sorted=True
+    # 5) SEGMENTATION
+    df_per_track_grainsize["frame_diff"] = (
+        df_per_track_grainsize["center_frame"].diff()
     )
+    df_per_track_grainsize["segment"] = (
+            df_per_track_grainsize["frame_diff"] > config.LOWESS_GAP_THRESHOLD
+    ).cumsum()  # Counts True = 1, as soon as threshold reached a new segment starts
 
-    # Convert LOWESS results into DataFrames (you already did this)
-    df_grainsize_lowess = pd.DataFrame(
-        grainsize_lowess_mean,
-        columns=["frame", "lowess_mean_track_grainsize"]
-    )
+    # 6) LOWESS per segment
+    lowess_results: list[pd.DataFrame] = []
+    for seg_id, seg in df_per_track_grainsize.groupby("segment"):
+
+        if len(seg) < config.LOWESS_SEGMENT_LENGTH:
+            continue  # too short for smoothing
+
+        n_frames_segment = seg["center_frame"].nunique()
+        frac = min(1.0, config.LOWESS_FRAME_WINDOW_SIZE / n_frames_segment)
+
+        grainsize_lowess_mean = lowess(
+            endog=seg["mean_track_grainsize"],
+            exog=seg["center_frame"],
+            frac=frac,
+            it=config.LOWESS_ITERATIONS,
+            return_sorted=True
+        )
+
+        df_grainsize_lowess = pd.DataFrame(
+            grainsize_lowess_mean,
+            columns=["frame", "lowess_mean_track_grainsize"]
+        )
+
+        df_percentiles_gs = (
+            seg.groupby("center_frame")["mean_track_grainsize"]
+            .quantile([0.05, 0.25, 0.5, 0.75, 0.95])
+            .unstack()
+            .rename(columns={0.05: "p5", 0.25: "p25", 0.5: "p50", 0.75: "p75", 0.95: "p95"})
+            .reset_index()
+            .rename(columns={"center_frame": "frame"})
+        )
+
+        df_percentiles_smooth = (
+            df_percentiles_gs
+            .set_index("frame")
+            .rolling(window=20, center=True, min_periods=1)
+            .mean()
+            .rename_axis("frame")
+            .reset_index()
+        )
+
+        df_segment = (
+            df_grainsize_lowess
+            .merge(df_percentiles_smooth, on="frame", how="outer")
+            .sort_values("frame")
+            .reset_index(drop=True)
+        )
+
+        df_segment["segment"] = seg_id
+
+        lowess_results.append(df_segment) # creates list in for loop
+
+    # save list as DF
+    df_grainsize_lowess = (
+        pd.concat(lowess_results)
+        .sort_values("frame")
+        .drop_duplicates(subset="frame", keep="first")
+        .reset_index(drop=True))
 
     return df_per_track_grainsize, df_grainsize_lowess

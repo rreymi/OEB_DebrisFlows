@@ -9,11 +9,13 @@ EVENT_DAY = "14"
 
 EVENT = f"{EVENT_YEAR}_{EVENT_MONTH}_{EVENT_DAY}"
 
-START_FRAME = 8
-END_FRAME = 23000
+START_FRAME = 65500
+END_FRAME = 72500
 
 ADD_SURGE_CLASSES = True
-ADD_PERCENTILES = False
+ADD_PERCENTILES = True
+
+
 # --------------------------------------------
 # --- Output paths
 # --------------------------------------------
@@ -61,10 +63,7 @@ STATISTIC_TYPE = "mean" # or "median"  # Per Track velocity (mean or median over
 # --------------------------------------------
 # --- Plot Parameters
 # --------------------------------------------
-FIG_SIZE =   (14,7)   #    (15,6)  # 2:1
-
-#FIG_SIZE_TIME = (15,6)      # 2.5:1
-FIG_SIZE_BUBBLE = (15,7)
+FIG_SIZE =   (14,7)   #    (15,6)  # 2:1 # 2.5:1
 
 YLIM_VELOCITY = (0, 5)
 YLIM_GRAINSIZE = (0, 1)

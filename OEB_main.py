@@ -39,11 +39,11 @@ run_calc_GS = True                     # lowess track grainsize
 # ------------------------------
 # --- Plotting ---
 plot_stats_per_frame = False             # Per Frame stats (Moving Average plots)
-plot_track_velocity = False               # Per Track stats (LOWESS Plot)
-plot_track_grainsize = True             # Per Track stats (LOWESS + Bubble plot)
+plot_track_velocity = True               # Per Track stats (LOWESS Plot)
+plot_track_grainsize = False             # Per Track stats (LOWESS + Bubble plot)
 plot_xy_mov_for_frame_sequence = False    # X - Y Track movement
 plot_cross_sec = False                   # Velocity cross-section plot
-plot_number_of_detections = True        # Plot number of Detections (YOLO, tracking and after  filtering)
+plot_number_of_detections = False        # Plot number of Detections (YOLO, tracking and after  filtering)
 plot_GSD = False                         # plot GSD per event / surge
 plot_GSD_all_events= False
 
@@ -79,19 +79,19 @@ def main():
 
 if __name__ == "__main__":
 
-    '''frame_ranges = [
-        # (0, 100000),
-        (8000, 23000),
-        (32000, 46500),
-        (47500, 62500),
-        (65500, 72500),
-        (73500, 92500),
-    ]
-
-    for start, end in frame_ranges:
-        print(f"\n--- Running for frames {start} → {end} ---\n")
-
-        config.START_FRAME = start
-        config.END_FRAME = end
-        main()'''
+    # frame_ranges = [
+    #     (0, 100000),
+    #     (8000, 23000),
+    #     (32000, 46500),
+    #     (47500, 62500),
+    #     (65500, 72500),
+    #     (73500, 92500),
+    # ]
+    #
+    # for start, end in frame_ranges:
+    #     print(f"\n--- Running for frames {start} → {end} ---\n")
+    #
+    #     config.START_FRAME = start
+    #     config.END_FRAME = end
+    #     main()
     main()

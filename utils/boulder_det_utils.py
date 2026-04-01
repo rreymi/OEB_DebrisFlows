@@ -1,21 +1,18 @@
-# model_performance_utils.py
+# boulder_det_utils.py
 
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-# -------------------------------
+
 # Parallel file row counter
-# -------------------------------
 def _count_rows(path):
     with path.open("r") as f:
         return path.stem, sum(1 for _ in f)
 
 
-# -------------------------------
 # Main function (parallelized)
-# -------------------------------
 def get_detection_counts_yolo(event, base_dir, max_workers=8):
     base_dir = Path(base_dir)
     folder = base_dir / event / "detections" / "labels"
@@ -42,7 +39,6 @@ def get_detection_counts_yolo(event, base_dir, max_workers=8):
     df = df.sort_values("frame_number_img").reset_index(drop=True)
 
     return df
-
 
 
 def compute_detection_stats(df):

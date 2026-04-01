@@ -710,12 +710,6 @@ def plot_track_grainsize_bubble(
     legend_loc_surge: str = "upper left",
 ) -> None:
 
-    # Config Values
-    event = config.EVENT
-    start_frame = config.START_FRAME
-    end_frame = config.END_FRAME
-    ylim_velocity = config.YLIM_VELOCITY
-
     frame_bin = config.BIN_WIDTH_BUBBLE
     fig, ax = plt.subplots(figsize=config.FIG_SIZE)
 
@@ -723,11 +717,11 @@ def plot_track_grainsize_bubble(
     # Filter time window
     # ------------------------------------------------------------------
     df_v = df_per_track_velocities[
-        df_per_track_velocities["center_frame"].between(start_frame, end_frame)
+        df_per_track_velocities["center_frame"].between(config.START_FRAME, config.END_FRAME)
     ].copy()
 
     df_g = df_per_track_grainsize[
-        df_per_track_grainsize["center_frame"].between(start_frame, end_frame)
+        df_per_track_grainsize["center_frame"].between(config.START_FRAME, config.END_FRAME)
     ].copy()
 
     # ------------------------------------------------------------------
@@ -823,9 +817,9 @@ def plot_track_grainsize_bubble(
 
     style_main_axis(ax,
                     xlabel="Frame Number",
-                    xlim=(start_frame, end_frame),
+                    xlim=(config.START_FRAME, config.END_FRAME),
                     ylabel= "Velocity (m/s)",
-                    ylim= ylim_velocity,
+                    ylim= config.YLIM_VELOCITY,
                     fontsize= 14,
                     add_grid=False)
 
@@ -836,11 +830,11 @@ def plot_track_grainsize_bubble(
     add_standard_legend(ax, fontsize= 12, loc=legend_loc)
 
     if add_surge_classes:
-        add_surge_background(ax, config.EVENT, start_frame, end_frame, legend_loc=legend_loc_surge, fontsize=12)
+        add_surge_background(ax, config.EVENT, config.START_FRAME, config.END_FRAME, legend_loc=legend_loc_surge, fontsize=12)
 
-        fig_name = f"GrainSize_bubble_plot_and_surge_type_{event}_{start_frame}_{end_frame}.jpeg"
+        fig_name = f"GrainSize_bubble_plot_and_surge_type_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg"
     else:
-        fig_name = f"GrainSize_bubble_plot_{event}_{start_frame}_{end_frame}.jpeg"
+        fig_name = f"GrainSize_bubble_plot_{config.EVENT}_{config.START_FRAME}_{config.END_FRAME}.jpeg"
 
     # Save plot
     save_plot(fig, fig_name, config.OUTPUT_DIR, config.START_FRAME, config.END_FRAME)
@@ -853,6 +847,7 @@ def plot_track_vel_and_grainsize(
     df_velocities_lowess: pd.DataFrame,
     df_time: pd.DataFrame, config,
     legend_loc: str = "upper right",
+    add_percentiles: bool = True,
     add_surge_classes: bool = True,
     legend_loc_surge: str = "upper left",
 ) -> None:
@@ -904,34 +899,36 @@ def plot_track_vel_and_grainsize(
             zorder=3
         )
 
-    # SECOND Y-AXIS for grain size
-    ax2 = ax.twinx()
-    # Grain sizes percentiles is plotted in segments --> avoid interpolation over large gaps
-    for i, (_, seg) in enumerate(df_grainsize_lowess.groupby("segment")):
 
-        ax2.plot(
-            seg['frame'],
-            seg['p95'],
-            label="Grain size d95" if i == 0 else None,
-            color='tab:purple',
-            linewidth=1,
-            alpha=0.9,
-            zorder=2
-        )
+    if add_percentiles:
+        # SECOND Y-AXIS for grain size
+        ax2 = ax.twinx()
+        # Grain sizes percentiles is plotted in segments --> avoid interpolation over large gaps
+        for i, (_, seg) in enumerate(df_grainsize_lowess.groupby("segment")):
 
-        ax2.plot(
-            seg['frame'],
-            seg['p50'],
-            label="Grain size d50" if i == 0 else None,
-            color='tab:red',
-            linewidth=1.2,
-            alpha=0.8,
-            zorder=2
-        )
+            ax2.plot(
+                seg['frame'],
+                seg['p95'],
+                label="Grain size d95" if i == 0 else None,
+                color='tab:purple',
+                linewidth=1,
+                alpha=0.9,
+                zorder=2
+            )
 
-    # ax2.set_ylabel("Grain Size (m)", fontsize=14)
-    ax2.tick_params(axis='y', labelsize=12)
-    ax2.set_ylim(0,1)
+            ax2.plot(
+                seg['frame'],
+                seg['p50'],
+                label="Grain size d50" if i == 0 else None,
+                color='tab:red',
+                linewidth=1.2,
+                alpha=0.8,
+                zorder=2
+            )
+
+        # ax2.set_ylabel("Grain Size (m)", fontsize=14)
+        ax2.tick_params(axis='y', labelsize=12)
+        ax2.set_ylim(0,0.5)
 
 
     # --- X and Y Axis
@@ -947,7 +944,10 @@ def plot_track_vel_and_grainsize(
     add_time_top_axis(ax, df_time, fontsize=14)
 
     # --- Legend
-    add_standard_legend(ax,ax2, loc=legend_loc, fontsize=12)
+    if add_percentiles:
+        add_standard_legend(ax, ax2, loc=legend_loc, fontsize=12)
+    else:
+        add_standard_legend(ax, loc=legend_loc, fontsize=12)
 
     if add_surge_classes:
         add_surge_background(ax, config.EVENT, config.START_FRAME, config.END_FRAME,

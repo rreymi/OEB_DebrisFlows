@@ -117,6 +117,7 @@ def plot_grainsize() -> None:
                                  df_grainsize_lowess,df_velocities_lowess, df_time, config,
                                  legend_loc="upper right",
                                  add_surge_classes=config.ADD_SURGE_CLASSES,
+                                 add_percentiles=config.ADD_PERCENTILES,
                                  legend_loc_surge="upper left",
                                  )
     print("--- Track Vel + GS scaled plot done --- \n")
